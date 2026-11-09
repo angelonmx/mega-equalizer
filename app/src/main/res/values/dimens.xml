@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="screen_padding">16dp</dimen>
+    <dimen name="screen_padding_wide">24dp</dimen>
+    <dimen name="space_xs">4dp</dimen>
+    <dimen name="space_s">8dp</dimen>
+    <dimen name="space_m">16dp</dimen>
+    <dimen name="space_l">24dp</dimen>
+    <dimen name="space_xl">32dp</dimen>
+    <dimen name="card_padding">20dp</dimen>
+    <dimen name="touch_target">48dp</dimen>
+    <dimen name="band_value_width">72dp</dimen>
+    <dimen name="icon_size">24dp</dimen>
+</resources>

@@ -1,0 +1,112 @@
+import java.util.Properties
+
+plugins {
+    id 'com.android.application'
+}
+
+def versionProps = new Properties()
+rootProject.file('version.properties').withInputStream { versionProps.load(it) }
+def appVersionName = versionProps.getProperty('VERSION_NAME', '1.0')
+def appVersionCode = versionProps.getProperty('VERSION_CODE', '1000').toInteger()
+
+def keystorePropsFile = rootProject.file('keystore.properties')
+def keystoreProps = new Properties()
+if (keystorePropsFile.exists()) {
+    keystorePropsFile.withInputStream { keystoreProps.load(it) }
+}
+
+def releaseStoreFile = System.getenv('MEGA_KEYSTORE_FILE') ?: keystoreProps.getProperty('storeFile')
+def releaseStorePassword = System.getenv('MEGA_KEYSTORE_PASSWORD') ?: keystoreProps.getProperty('storePassword')
+def releaseKeyAlias = System.getenv('MEGA_KEY_ALIAS') ?: keystoreProps.getProperty('keyAlias')
+def releaseKeyPassword = System.getenv('MEGA_KEY_PASSWORD') ?: keystoreProps.getProperty('keyPassword')
+def hasReleaseSigning = releaseStoreFile && releaseStorePassword && releaseKeyAlias && releaseKeyPassword
+
+android {
+    namespace 'com.angelonmx.megaequalizer'
+    compileSdk 36
+
+    defaultConfig {
+        applicationId 'com.angelonmx.megaequalizer'
+        minSdk 26
+        targetSdk 36
+        versionCode appVersionCode
+        versionName appVersionName
+
+        buildConfigField 'String', 'UPDATE_OWNER', '"angelonmx"'
+        buildConfigField 'String', 'UPDATE_REPO', '"mega-equalizer"'
+        buildConfigField 'String', 'PROJECT_URL', '"https://github.com/angelonmx/mega-equalizer"'
+
+        ndk {
+            // x86_64 is only used by the universal APK so the app can be
+            // tested on the Android emulator. The published split APKs target
+            // real phones (armeabi-v7a and arm64-v8a).
+            abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86_64'
+        }
+    }
+
+    signingConfigs {
+        release {
+            if (hasReleaseSigning) {
+                storeFile file(releaseStoreFile)
+                storePassword releaseStorePassword
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyPassword
+                enableV1Signing true
+                enableV2Signing true
+                enableV3Signing true
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            shrinkResources false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            if (hasReleaseSigning) {
+                signingConfig signingConfigs.release
+            }
+        }
+        debug {
+            applicationIdSuffix '.debug'
+            versionNameSuffix '-debug'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    buildFeatures {
+        buildConfig true
+        viewBinding true
+    }
+
+    splits {
+        abi {
+            enable true
+            reset()
+            include 'armeabi-v7a', 'arm64-v8a'
+            universalApk true
+        }
+    }
+
+    packaging {
+        resources {
+            excludes += ['META-INF/DEPENDENCIES', 'META-INF/LICENSE*', 'META-INF/NOTICE*']
+        }
+    }
+
+    lint {
+        abortOnError false
+        checkReleaseBuilds false
+    }
+}
+
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+    implementation 'androidx.core:core:1.18.0'
+    implementation 'androidx.recyclerview:recyclerview:1.2.1'
+    implementation 'com.google.android.material:material:1.13.0'
+}

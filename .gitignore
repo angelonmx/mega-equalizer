@@ -1,0 +1,15 @@
+*.iml
+.gradle/
+.idea/
+.cxx/
+build/
+captures/
+local.properties
+keystore.properties
+*.jks
+*.keystore
+secret/
+release-assets/
+.DS_Store
+Thumbs.db
+*.log

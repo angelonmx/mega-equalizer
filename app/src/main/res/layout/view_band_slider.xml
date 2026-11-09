@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingTop="@dimen/space_s"
+    android:paddingBottom="@dimen/space_s">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:baselineAligned="false"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/textBandLabel"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textAppearance="?attr/textAppearanceTitleSmall"
+            android:textColor="?attr/colorOnSurface" />
+
+        <TextView
+            android:id="@+id/textBandValue"
+            android:layout_width="@dimen/band_value_width"
+            android:layout_height="wrap_content"
+            android:gravity="end"
+            android:accessibilityLiveRegion="polite"
+            android:textAppearance="?attr/textAppearanceBodyLarge"
+            android:textColor="?attr/colorOnSurface" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/buttonDecrease"
+            style="@style/Widget.Material3.Button.IconButton"
+            android:layout_width="@dimen/touch_target"
+            android:layout_height="@dimen/touch_target"
+            android:insetLeft="0dp"
+            android:insetRight="0dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:minWidth="@dimen/touch_target"
+            android:minHeight="@dimen/touch_target"
+            android:text="−"
+            android:textSize="24sp"
+            app:iconPadding="0dp" />
+
+        <com.angelonmx.megaequalizer.ui.GainSeekBar
+            android:id="@+id/seekBand"
+            android:layout_width="0dp"
+            android:layout_height="@dimen/touch_target"
+            android:layout_marginStart="@dimen/space_xs"
+            android:layout_marginEnd="@dimen/space_xs"
+            android:layout_weight="1"
+            android:max="24"
+            android:min="0"
+            android:progress="12" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/buttonIncrease"
+            style="@style/Widget.Material3.Button.IconButton"
+            android:layout_width="@dimen/touch_target"
+            android:layout_height="@dimen/touch_target"
+            android:insetLeft="0dp"
+            android:insetRight="0dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:minWidth="@dimen/touch_target"
+            android:minHeight="@dimen/touch_target"
+            android:text="+"
+            android:textSize="24sp"
+            app:iconPadding="0dp" />
+    </LinearLayout>
+</LinearLayout>
