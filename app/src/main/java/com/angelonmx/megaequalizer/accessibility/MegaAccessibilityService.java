@@ -14,9 +14,13 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * Optional service used exclusively to learn the foreground package name for
- * per-app audio profiles. It does not retrieve window content and never reads
- * on-screen text.
+ * Optional service used to learn the foreground package name for per-app audio
+ * profiles and to keep the global audio engine alive. It does not retrieve
+ * window content and never reads on-screen text.
+ *
+ * <p>The global audio effect is attached to the output mix (session 0), so it
+ * covers every audio stream, including the accessibility stream used by
+ * TalkBack, whenever the device allows global effects.</p>
  */
 public class MegaAccessibilityService extends AccessibilityService {
 
@@ -41,6 +45,15 @@ public class MegaAccessibilityService extends AccessibilityService {
         PresetRepository.get(this).setForegroundPackage(pendingPackage);
         EqualizerService.requestRefresh(this);
     };
+
+    @Override
+    protected void onServiceConnected() {
+        super.onServiceConnected();
+        // Keep the system-wide engine alive and re-evaluate the current route
+        // when the user enables the service. The engine processes the complete
+        // output mix, including the accessibility stream, when supported.
+        EqualizerService.requestRefresh(this);
+    }
 
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {

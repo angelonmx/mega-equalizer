@@ -19,11 +19,11 @@ Estos datos se almacenan en el almacenamiento privado de la app. Se incluyen en 
 
 ## Acceso al audio
 
-Mega Equalizer usa el permiso `MODIFY_AUDIO_SETTINGS` para aplicar efectos de audio del sistema. No graba audio, no guarda sonido y no analiza el contenido de lo que escuchas.
+Mega Equalizer usa el permiso `MODIFY_AUDIO_SETTINGS` para aplicar efectos de audio del sistema sobre la mezcla de salida, incluido el audio de accesibilidad cuando el dispositivo lo permite. No graba audio, no guarda sonido y no analiza el contenido de lo que escuchas.
 
 ## Servicio de accesibilidad
 
-El servicio de accesibilidad es opcional. Solo se usa para recibir el nombre del paquete de la aplicación que está en primer plano cuando activas los perfiles por aplicación.
+El servicio de accesibilidad es opcional. Se usa para recibir el nombre del paquete de la aplicación que está en primer plano cuando activas los perfiles por aplicación y para mantener activo el motor global de ecualización. El motor global procesa la mezcla completa del dispositivo, incluido el canal de audio de accesibilidad, cuando el fabricante permite efectos globales.
 
 - No lee el texto ni el contenido de la pantalla.
 - No usa captura de pantalla.

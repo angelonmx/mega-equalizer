@@ -71,6 +71,11 @@
             android:label="@string/settings_title" />
 
         <activity
+            android:name=".LicenseActivity"
+            android:exported="false"
+            android:label="@string/about_license" />
+
+        <activity
             android:name=".update.InstallActivity"
             android:excludeFromRecents="true"
             android:exported="false"

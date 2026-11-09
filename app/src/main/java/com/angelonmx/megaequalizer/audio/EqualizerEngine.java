@@ -22,6 +22,12 @@ import java.util.Map;
  * device's built-in Equalizer. If the device does not allow global effects at
  * all, effects can still be attached to individual audio sessions opened by
  * compatible media players.
+ *
+ * <p>Global effects use session 0. Android applies them to the complete output
+ * mix, so media, notifications, accessibility speech (TalkBack) and every other
+ * stream share the same equalization when the device supports global effects.
+ * The accessibility service does not capture audio; it only keeps this engine
+ * alive and detects the foreground app for optional per-app profiles.</p>
  */
 public final class EqualizerEngine {
 

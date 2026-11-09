@@ -13,3 +13,6 @@ release-assets/
 .DS_Store
 Thumbs.db
 *.log
+# Instrucciones locales de compilación (contienen datos de firma)
+INSTRUCCIONES_DE_COMPILACION.md
+INSTRUCCIONES DE COMPILACIÓN.md

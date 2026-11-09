@@ -57,10 +57,10 @@
     <string name="quick_start_text">Crea un preset, asígnalo a un dispositivo y activa la ecualización. Si no hay un preset asignado a la salida actual, Mega Equalizer no aplica ningún efecto. Los ajustes por aplicación son opcionales y requieren el servicio de accesibilidad.</string>
     <string name="engine_format">Motor de audio: %1$s</string>
     <string name="service_not_running">El servicio no está en ejecución.</string>
-    <string name="accessibility_setup_title">Perfiles por aplicación (opcional)</string>
-    <string name="accessibility_setup_text">Activa el servicio de accesibilidad de Mega Equalizer para que pueda saber qué aplicación está en primer plano. Solo observa el nombre del paquete: no lee la pantalla ni el texto.</string>
+    <string name="accessibility_setup_title">Servicio de accesibilidad (opcional)</string>
+    <string name="accessibility_setup_text">Activa el servicio de accesibilidad para que Mega Equalizer mantenga activo el motor global y detecte la aplicación en primer plano. La ecualización global cubre todos los canales de la mezcla, incluido el audio de accesibilidad, cuando el dispositivo lo permite. Solo observa el nombre del paquete: no lee la pantalla ni el texto.</string>
     <string name="open_accessibility_settings">Abrir ajustes de accesibilidad</string>
-    <string name="accessibility_optional_note">La ecualización global de los dispositivos no necesita este permiso.</string>
+    <string name="accessibility_optional_note">La ecualización global funciona sin este permiso, pero el servicio ayuda a mantenerla activa y a aplicar perfiles por aplicación.</string>
 
     <!-- Presets -->
     <string name="presets_title">Presets</string>
@@ -222,7 +222,7 @@
     <!-- Settings -->
     <string name="settings_title">Ajustes</string>
     <string name="settings_accessibility_heading">Accesibilidad</string>
-    <string name="settings_accessibility_explanation">El servicio de accesibilidad es opcional. Permite detectar la aplicación en primer plano para aplicar sus perfiles. No lee el texto ni el contenido de la pantalla, no usa captura de pantalla y no envía información a Internet.</string>
+    <string name="settings_accessibility_explanation">El servicio de accesibilidad es opcional. Mantiene activo el motor global, que procesa la mezcla completa (incluido el canal de accesibilidad de TalkBack) cuando el dispositivo lo permite, y detecta la aplicación en primer plano para aplicar sus perfiles. No lee el texto ni el contenido de la pantalla, no usa captura de pantalla y no envía información a Internet.</string>
     <string name="settings_notifications_heading">Notificaciones</string>
     <string name="settings_notifications_explanation">La notificación del servicio muestra el preset activo y permite desactivar la ecualización sin abrir la app.</string>
     <string name="notifications_enabled">Notificaciones permitidas</string>
@@ -263,11 +263,11 @@
     <string name="settings_about_heading">Acerca de</string>
     <string name="about_version_format">Mega Equalizer %1$s, código %2$d</string>
     <string name="about_repository">Ver el proyecto en GitHub</string>
-    <string name="about_license">Licencia MIT</string>
+    <string name="about_license">Licencia GPL v3</string>
     <string name="about_privacy">Privacidad</string>
-    <string name="about_privacy_text">Mega Equalizer no recopila datos personales. La conexión a Internet se usa únicamente para consultar y descargar actualizaciones desde GitHub. Los presets, las asignaciones y los nombres de las aplicaciones se guardan solo en tu dispositivo. El servicio de accesibilidad solo recibe el nombre del paquete de la ventana activa.</string>
-    <string name="about_audio_note">Mega Equalizer usa los efectos de audio del sistema Android. Algunos fabricantes limitan los efectos globales; en esos casos la app puede aplicar el ecualizador solo a reproductores que permiten sesiones de efectos de audio.</string>
-    <string name="license_text">MIT License\n\nCopyright (c) 2026 Angelonmx\n\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \"Software\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.</string>
+    <string name="about_privacy_text">Mega Equalizer no recopila datos personales. La conexión a Internet se usa únicamente para consultar y descargar actualizaciones desde GitHub. Los presets, las asignaciones y los nombres de las aplicaciones se guardan solo en tu dispositivo. El servicio de accesibilidad solo recibe el nombre del paquete de la ventana activa y mantiene activo el motor global; no lee el contenido de la pantalla.</string>
+    <string name="about_audio_note">Mega Equalizer usa los efectos de audio del sistema Android. El motor global procesa la mezcla completa, incluidos los canales de accesibilidad y TalkBack, cuando el fabricante permite efectos globales. Si el dispositivo los bloquea, la app puede aplicar el ecualizador solo a reproductores que permiten sesiones de efectos de audio.</string>
+    <string name="license_text">Mega Equalizer se distribuye bajo la GNU General Public License, versión 3 o posterior.\n\nEste programa es software libre: puedes redistribuirlo y/o modificarlo bajo los términos de la GPL. Se distribuye sin garantía. El texto completo de la licencia se incluye en la aplicación y en el archivo LICENSE del repositorio.</string>
 
     <!-- Service notification -->
     <string name="notification_channel_service">Estado de la ecualización</string>
@@ -317,9 +317,9 @@
     <string name="update_install_notification_action">Instalar</string>
 
     <!-- Accessibility service -->
-    <string name="accessibility_service_label">Mega Equalizer: perfiles por aplicación</string>
-    <string name="accessibility_service_summary">Detecta el nombre de la app en primer plano para aplicar su preset de audio.</string>
-    <string name="accessibility_service_description">Mega Equalizer usa este servicio solo para saber qué aplicación está en primer plano y aplicar su preset de ecualización. No puede leer el contenido de la pantalla, el texto, las contraseñas ni los mensajes. No toma capturas y no envía información a Internet. Puedes desactivarlo cuando quieras; los presets por dispositivo seguirán funcionando.</string>
+    <string name="accessibility_service_label">Mega Equalizer: audio y perfiles</string>
+    <string name="accessibility_service_summary">Mantiene activo el motor global y detecta la app en primer plano para aplicar su preset.</string>
+    <string name="accessibility_service_description">Mega Equalizer usa este servicio para mantener activo el motor de ecualización global, que procesa la mezcla completa (incluido el canal de accesibilidad de TalkBack) cuando el dispositivo lo permite, y para saber qué aplicación está en primer plano y aplicar su preset. No puede leer el contenido de la pantalla, el texto, las contraseñas ni los mensajes. No toma capturas y no envía información a Internet. Puedes desactivarlo cuando quieras; los presets por dispositivo seguirán funcionando.</string>
 
     <!-- Errors and effects -->
     <string name="engine_dynamics">DynamicsProcessing, 10 bandas</string>

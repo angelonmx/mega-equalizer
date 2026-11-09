@@ -17,7 +17,8 @@ Mega Equalizer aplica ecualizaciones por dispositivo y, de forma opcional, por a
   - otros dispositivos;
   - comodín «Cualquier dispositivo».
 - **Prioridad clara**: dispositivo Bluetooth concreto → categoría Bluetooth → «Cualquier dispositivo» → sin efecto.
-- **Perfiles por aplicación (opcionales y experimentales)**: usan el servicio de accesibilidad solo para saber qué paquete está en primer plano.
+- **Cobertura global**: el motor principal procesa la mezcla completa de audio, incluidos los canales de accesibilidad y la voz de TalkBack, cuando el fabricante permite efectos globales.
+- **Perfiles por aplicación (opcionales y experimentales)**: usan el servicio de accesibilidad para detectar el paquete en primer plano y mantener activo el motor global.
 - **Servicio en primer plano**: muestra el preset activo en una notificación y permite desactivar la ecualización sin abrir la app.
 - **Actualizaciones integradas**: se comprueban únicamente al abrir la app, eligen el APK de tu arquitectura, verifican SHA-256 y abren el instalador del sistema.
 - **Tema claro, oscuro o automático**.
@@ -33,9 +34,9 @@ Descarga el APK desde la página de [Releases](https://github.com/angelonmx/mega
 
 | Archivo | Arquitectura | Cuándo usarlo |
 | --- | --- | --- |
-| `mega-equalizer-1.0-arm64-v8a.apk` | ARM de 64 bits | La mayoría de teléfonos actuales |
-| `mega-equalizer-1.0-armeabi-v7a.apk` | ARM de 32 bits | Teléfonos antiguos o de gama baja |
-| `mega-equalizer-1.0-universal.apk` | ARM64, ARMv7 y x86_64 | Emuladores o si no estás seguro de tu arquitectura |
+| `mega-equalizer-1.1-arm64-v8a.apk` | ARM de 64 bits | La mayoría de teléfonos actuales |
+| `mega-equalizer-1.1-armeabi-v7a.apk` | ARM de 32 bits | Teléfonos antiguos o de gama baja |
+| `mega-equalizer-1.1-universal.apk` | ARM64, ARMv7 y x86_64 | Emuladores o si no estás seguro de tu arquitectura |
 
 Puedes consultar la arquitectura de tu teléfono en **Ajustes → Acerca del teléfono → Información del procesador**, o instalar la versión universal.
 
@@ -60,7 +61,7 @@ Todos los APK publicados se firman con la misma clave. Huella SHA-256 del certif
 También puedes comprobarlo con Android SDK Build Tools:
 
 ```bash
-apksigner verify --print-certs mega-equalizer-1.0-arm64-v8a.apk
+apksigner verify --print-certs mega-equalizer-1.1-arm64-v8a.apk
 ```
 
 ## Primeros pasos
@@ -93,7 +94,7 @@ Los perfiles por aplicación son **opcionales y experimentales**:
 2. Activa **Perfiles por aplicación** en la pantalla **Aplicaciones**.
 3. Elige una app y asígnale un preset, «Usar el preset del dispositivo» o «No aplicar ningún efecto».
 
-El servicio de accesibilidad solo recibe el nombre del paquete de la ventana activa. No lee el contenido de la pantalla, no usa captura de pantalla y no envía información a Internet.
+El servicio de accesibilidad solo recibe el nombre del paquete de la ventana activa y mantiene activo el motor global. No lee el contenido de la pantalla, no usa captura de pantalla y no envía información a Internet. El motor global se aplica a toda la mezcla, así que también cubre el audio de accesibilidad y TalkBack cuando el dispositivo lo permite.
 
 ## Cómo funciona el audio
 
@@ -103,7 +104,7 @@ Mega Equalizer intenta, en este orden:
 2. **Equalizer** del sistema Android sobre la mezcla global;
 3. efectos de sesión para reproductores que abren sesiones de efectos de audio compatibles.
 
-Los efectos globales dependen del fabricante. Algunos teléfonos limitan o bloquean los efectos sobre la mezcla global; en esos casos la app lo indica y puede seguir funcionando con reproductores compatibles. El ecualizador no puede procesar audio de apps que no exponen una sesión de audio al sistema.
+Los efectos globales se aplican a la mezcla completa del dispositivo: audio multimedia, notificaciones, llamadas y el canal de accesibilidad que usa TalkBack. Dependen del fabricante: algunos teléfonos limitan o bloquean los efectos sobre la mezcla global; en esos casos la app lo indica y puede seguir funcionando con reproductores compatibles. El ecualizador no puede procesar audio de apps que no exponen una sesión de audio al sistema.
 
 ## Privacidad
 
@@ -172,8 +173,8 @@ app/build/outputs/apk/release/app-universal-release.apk
 3. Crea un tag y súbelo:
 
 ```bash
-git tag v1.0
-git push origin v1.0
+git tag v1.1
+git push origin v1.1
 ```
 
 El workflow `.github/workflows/release.yml` compila y firma los tres APK, genera `version.json` con sus SHA-256 y publica el release en GitHub. La app consulta:
@@ -198,16 +199,17 @@ app/src/main/java/com/angelonmx/megaequalizer/
 ├── audio/          Detección de rutas y motor de efectos
 ├── data/           Presets, asignaciones, perfiles y estado
 ├── service/        Servicio en primer plano
-├── accessibility/  Detección del paquete en primer plano
+├── accessibility/  Detección del paquete en primer plano y vigilancia del motor
 ├── update/         Comprobación, descarga y verificación de APK
 ├── ui/             Adaptadores y controles accesibles
 └── util/           Accesibilidad, hash y ABI
+app/src/main/assets/ Texto completo de la licencia GPL v3
 scripts/             Metadatos del release y bibliotecas nativas
 ```
 
 ## Licencia
 
-MIT. Consulta [LICENSE](LICENSE).
+Mega Equalizer se distribuye bajo la **GNU General Public License, versión 3 o posterior** (GPLv3). Consulta [LICENSE](LICENSE).
 
 ## Aviso
 

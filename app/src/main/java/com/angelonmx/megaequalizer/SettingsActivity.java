@@ -91,11 +91,7 @@ public class SettingsActivity extends BaseActivity {
                         .setPositiveButton(R.string.close, null)
                         .show());
         findViewById(R.id.buttonLicense).setOnClickListener(view ->
-                new MaterialAlertDialogBuilder(this)
-                        .setTitle(R.string.about_license)
-                        .setMessage(R.string.license_text)
-                        .setPositiveButton(R.string.close, null)
-                        .show());
+                startActivity(new Intent(this, LicenseActivity.class)));
 
         TextView textVersion = findViewById(R.id.textVersion);
         textVersion.setText(getString(
