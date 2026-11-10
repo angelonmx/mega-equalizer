@@ -2,6 +2,41 @@
 
 Todas las versiones publicadas de Mega Equalizer.
 
+## 1.2 — 2026-11-09
+
+### Ecualización de todo el dispositivo
+
+- El motor global sigue procesando la mezcla completa: multimedia, notificaciones, llamadas y el canal de accesibilidad que usa TalkBack, cuando el fabricante permite efectos globales.
+- Nuevo bucle de salud del motor cada 20 segundos: vuelve a aplicar el efecto si Android lo pierde, lo bloquea o lo libera.
+- El servicio de accesibilidad refresca el motor cada 15 segundos mientras está activo.
+- El servicio en primer plano es persistente (`START_STICKY`) y se recupera tras reinicios, actualizaciones de la app o cierres agresivos mediante `JobScheduler` y un receptor de arranque.
+- Se mantiene la regla: si la salida actual no tiene preset, no se aplica ningún efecto.
+
+### Presets persistentes por salida concreta
+
+- Cada salida de audio identificable tiene ahora su propia clave: altavoz, auriculares, USB, HDMI, auxiliar y cualquier otro dispositivo, además de Bluetooth.
+- La asignación guarda el nombre, el tipo, la categoría, la dirección y la última vez visto del dispositivo.
+- Nueva sección **Dispositivos recordados** en la pantalla Dispositivos: muestra las salidas desconectadas que conservan su preset y permite reasignarlas.
+- El editor de presets incluye un selector de **dispositivos concretos** para todas las salidas, no solo Bluetooth.
+- Nueva prioridad de resolución: salida concreta → categoría → «Cualquier dispositivo» → sin efecto.
+
+### Actualizaciones accesibles
+
+- El diálogo de actualización muestra el registro de cambios, la arquitectura del dispositivo, la arquitectura instalada y la arquitectura que se descargará, además del nombre y el número de versión.
+- Nueva notificación de progreso de descarga en primer plano, con porcentaje, tamaño descargado y tamaño total.
+- TalkBack anuncia el inicio de la descarga, el progreso (como mínimo cada 10 % o cada 20 segundos), la finalización, los errores y la cancelación.
+- La descarga se puede cancelar desde la notificación.
+- Al terminar y verificar el APK se muestra un diálogo para abrir el instalador de Android, además de la notificación de actualización lista.
+- La primera vez que se abre una versión recién instalada se muestra una sola vez su registro de cambios. Las instalaciones nuevas no muestran este aviso.
+- Se descarta automáticamente cualquier APK descargado que ya esté instalado o que pertenezca a una versión anterior.
+
+### Persistencia y calidad
+
+- Se guardan de forma definitiva presets, asignaciones, dispositivos, perfiles por app, ajustes, tema y estado de actualización.
+- Los diálogos y anuncios de TalkBack se mantienen en español.
+- Se publican exactamente tres APK: `arm64-v8a`, `armeabi-v7a` y universal con `x86_64` solo dentro del universal.
+- Licencia GPLv3 sin cambios.
+
 ## 1.1 — 2026-11-08
 
 ### Licencia

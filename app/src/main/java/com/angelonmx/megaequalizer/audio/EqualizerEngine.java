@@ -1,6 +1,7 @@
 package com.angelonmx.megaequalizer.audio;
 
 import android.content.Context;
+import android.media.audiofx.AudioEffect;
 import android.media.audiofx.DynamicsProcessing;
 import android.media.audiofx.Equalizer;
 import android.os.Build;
@@ -46,9 +47,17 @@ public final class EqualizerEngine {
     private String lastError = "";
     private Preset currentPreset;
     private AudioRoute currentRoute;
+    private volatile Runnable needsReapplyListener;
+    private volatile boolean controlLost;
+    private long lastGlobalAttemptAt;
 
     public EqualizerEngine(Context context) {
         this.context = context.getApplicationContext();
+    }
+
+    /** Called when Android loses control of the global effect. */
+    public void setOnNeedsReapplyListener(Runnable listener) {
+        needsReapplyListener = listener;
     }
 
     public synchronized void applyPreset(Preset preset, AudioRoute route) {
@@ -90,6 +99,42 @@ public final class EqualizerEngine {
                 }
             }
         }
+    }
+
+    /**
+     * Periodic health check used by the foreground service. It reapplies the
+     * current preset, reattaches the global effect after Android steals or
+     * loses it, and retries a previously blocked output every two minutes.
+     *
+     * @return true when the engine state changed and the UI should refresh.
+     */
+    public synchronized boolean ensureApplied() {
+        if (currentPreset == null) {
+            return false;
+        }
+        boolean changed = false;
+        if (controlLost) {
+            releaseGlobal();
+            failedCategory = null;
+            controlLost = false;
+            changed = true;
+        }
+        if (!isGlobalActive()) {
+            long now = System.currentTimeMillis();
+            if (failedCategory != null && now - lastGlobalAttemptAt < 120000L) {
+                return changed;
+            }
+            failedCategory = null;
+            applyPreset(currentPreset, currentRoute);
+            return true;
+        }
+        if (!updateGlobalEffect(currentPreset)) {
+            releaseGlobal();
+            failedCategory = null;
+            createGlobalEffect(currentRoute == null ? DeviceCategory.OTHER : currentRoute.category);
+            changed = true;
+        }
+        return changed;
     }
 
     public synchronized boolean isGlobalActive() {
@@ -178,11 +223,14 @@ public final class EqualizerEngine {
     private void createGlobalEffect(DeviceCategory category) {
         releaseGlobal();
         lastError = "";
+        lastGlobalAttemptAt = System.currentTimeMillis();
+        controlLost = false;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             try {
                 DynamicsProcessing processor = createDynamics(0, currentPreset);
                 if (processor != null) {
                     globalDynamics = processor;
+                    attachControlListener(processor);
                     globalCategory = category;
                     failedCategory = null;
                     engineLabel = context.getString(com.angelonmx.megaequalizer.R.string.engine_dynamics);
@@ -197,6 +245,7 @@ public final class EqualizerEngine {
             Equalizer equalizer = createEqualizer(0, currentPreset);
             if (equalizer != null) {
                 globalEqualizer = equalizer;
+                attachControlListener(equalizer);
                 globalCategory = category;
                 failedCategory = null;
                 engineLabel = context.getString(
@@ -211,6 +260,7 @@ public final class EqualizerEngine {
         }
         try {
             globalEqualizer = new Equalizer(PRIORITY, 0);
+            attachControlListener(globalEqualizer);
             globalEqualizer.setEnabled(true);
             equalizerBandCount = globalEqualizer.getNumberOfBands();
             globalCategory = category;
@@ -226,6 +276,25 @@ public final class EqualizerEngine {
             failedCategory = category;
             engineLabel = context.getString(com.angelonmx.megaequalizer.R.string.engine_session_only);
             lastError = context.getString(com.angelonmx.megaequalizer.R.string.effect_not_supported);
+        }
+    }
+
+    private void attachControlListener(AudioEffect effect) {
+        try {
+            effect.setControlStatusListener((audioEffect, controlGranted) -> {
+                if (controlGranted) {
+                    controlLost = false;
+                    return;
+                }
+                Log.w(TAG, "Android perdió el control del efecto global");
+                controlLost = true;
+                Runnable listener = needsReapplyListener;
+                if (listener != null) {
+                    listener.run();
+                }
+            });
+        } catch (Throwable error) {
+            Log.w(TAG, "No se pudo vigilar el estado del efecto global", error);
         }
     }
 
@@ -364,6 +433,7 @@ public final class EqualizerEngine {
         }
         globalCategory = null;
         equalizerBandCount = 0;
+        controlLost = false;
     }
 
     private final class SessionEffect {

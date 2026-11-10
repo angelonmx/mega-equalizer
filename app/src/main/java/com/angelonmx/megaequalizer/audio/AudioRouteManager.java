@@ -64,8 +64,7 @@ public final class AudioRouteManager {
                         continue;
                     }
                     DeviceCategory category = DeviceCategory.fromAudioDeviceType(device.getType());
-                    if (device.getType() == AudioDeviceInfo.TYPE_REMOTE_SUBMIX
-                            || device.getType() == AudioDeviceInfo.TYPE_FM_TUNER) {
+                    if (AudioRoute.isVirtualOutputType(device.getType())) {
                         continue;
                     }
                     String name = readProductName(device);
@@ -160,6 +159,51 @@ public final class AudioRouteManager {
                 connected ? R.string.bluetooth_connected_format : R.string.bluetooth_bonded_format,
                 route.name
         );
+    }
+
+    /**
+     * Returns every output that can receive an individual preset: connected
+     * outputs, bonded Bluetooth devices and devices remembered from previous
+     * assignments. Connected devices come first.
+     */
+    public static List<AudioRoute> listAssignableDevices(Context context) {
+        Map<String, AudioRoute> byKey = new LinkedHashMap<>();
+        for (AudioRoute route : listConnectedOutputs(context)) {
+            String key = route.targetKey();
+            if (AudioRoute.isSpecificTarget(key)) {
+                byKey.put(key, route);
+            }
+        }
+        for (AudioRoute route : listBluetoothDevices(context)) {
+            String key = route.targetKey();
+            if (AudioRoute.isSpecificTarget(key)) {
+                byKey.put(key, route);
+            }
+        }
+        for (AudioRoute route : com.angelonmx.megaequalizer.data.PresetRepository
+                .get(context).getRememberedRoutes()) {
+            String key = route.targetKey();
+            if (AudioRoute.isSpecificTarget(key)) {
+                byKey.putIfAbsent(key, route);
+            }
+        }
+        List<AudioRoute> result = new ArrayList<>(byKey.values());
+        Collator collator = Collator.getInstance(Locale.getDefault());
+        Collections.sort(result, (left, right) -> {
+            if (left.connected != right.connected) {
+                return left.connected ? -1 : 1;
+            }
+            return collator.compare(left.name, right.name);
+        });
+        return result;
+    }
+
+    public static String describeAssignableRoute(Context context, AudioRoute route) {
+        String type = route.typeLabel(context);
+        int format = route.connected
+                ? R.string.device_connected_detail_format
+                : R.string.device_remembered_detail_format;
+        return context.getString(format, route.name, type);
     }
 
     private static String readProductName(AudioDeviceInfo device) {

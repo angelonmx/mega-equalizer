@@ -5,7 +5,9 @@ import android.app.DownloadManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageInfo;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
@@ -14,6 +16,7 @@ import android.util.Log;
 import android.widget.Toast;
 
 import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
 
 import com.angelonmx.megaequalizer.BuildConfig;
 import com.angelonmx.megaequalizer.R;
@@ -50,13 +53,17 @@ public final class UpdateChecker {
     public static final String KEY_VERSION = "version";
     public static final String KEY_VERSION_CODE = "version_code";
     public static final String KEY_SHA = "sha256";
+    public static final String KEY_NOTES = "notes";
     public static final String KEY_READY_FILE = "ready_file";
     public static final String KEY_READY_VERSION = "ready_version";
+    public static final String KEY_READY_VERSION_CODE = "ready_version_code";
     public static final String KEY_READY_SHA = "ready_sha";
     public static final String KEY_READY_PROMPTED = "ready_prompted";
 
     public static final String EXTRA_INSTALL_FILE = "install_file";
     public static final String EXTRA_INSTALL_VERSION = "install_version";
+    public static final String ACTION_UPDATE_READY =
+            "com.angelonmx.megaequalizer.action.UPDATE_READY";
 
     public interface UpdateCallback {
         /**
@@ -189,22 +196,54 @@ public final class UpdateChecker {
     }
 
     public static void showUpdateDialog(Activity activity, UpdateInfo update) {
+        String deviceAbis = Build.SUPPORTED_ABIS.length == 0
+                ? activity.getString(R.string.unknown)
+                : TextUtils.join(", ", Build.SUPPORTED_ABIS);
+        String installedAbi = NativeAbi.get();
+        UpdateInfo.Asset asset = selectAsset(update);
+        String downloadAbi = asset == null
+                ? activity.getString(R.string.not_available)
+                : selectedAbi(update) + " (" + asset.name + ")";
+
         StringBuilder message = new StringBuilder(
-                activity.getString(R.string.update_available_message, update.versionName)
+                activity.getString(
+                        R.string.update_available_message,
+                        update.versionName,
+                        update.versionCode
+                )
         );
+        message.append("\n\n")
+                .append(activity.getString(R.string.update_architecture_device_format, deviceAbis))
+                .append("\n")
+                .append(activity.getString(R.string.update_architecture_installed_format, installedAbi))
+                .append("\n")
+                .append(activity.getString(R.string.update_architecture_download_format, downloadAbi));
         if (!TextUtils.isEmpty(update.notes)) {
             message.append("\n\n")
-                    .append(activity.getString(R.string.update_notes_heading))
+                    .append(activity.getString(
+                            R.string.update_notes_heading_format,
+                            update.versionName
+                    ))
                     .append("\n")
-                    .append(update.notes.trim());
+                    .append(plainNotes(update.notes));
         }
-        new MaterialAlertDialogBuilder(activity)
+        if (asset == null) {
+            message.append("\n\n").append(activity.getString(R.string.update_asset_missing));
+        } else {
+            message.append("\n\n").append(activity.getString(R.string.update_install_dialog_note));
+        }
+
+        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(activity)
                 .setTitle(R.string.update_available_title)
-                .setMessage(message)
-                .setPositiveButton(R.string.download_and_install, (dialog, which) ->
-                        download(activity, update))
-                .setNegativeButton(R.string.later, null)
-                .show();
+                .setMessage(message);
+        if (asset != null) {
+            builder.setPositiveButton(R.string.download_and_install, (dialog, which) ->
+                            download(activity, update))
+                    .setNegativeButton(R.string.later, null);
+        } else {
+            builder.setPositiveButton(R.string.close, null);
+        }
+        builder.show();
     }
 
     public static void download(Activity activity, UpdateInfo update) {
@@ -241,7 +280,9 @@ public final class UpdateChecker {
             request.setMimeType("application/vnd.android.package-archive");
             request.setAllowedOverMetered(true);
             request.setAllowedOverRoaming(false);
-            request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+            // The foreground download service publishes its own accessible
+            // progress notification, so DownloadManager does not duplicate it.
+            request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_HIDDEN);
             request.setDestinationInExternalFilesDir(
                     activity,
                     Environment.DIRECTORY_DOWNLOADS,
@@ -259,11 +300,22 @@ public final class UpdateChecker {
                     .putString(KEY_VERSION, update.versionName)
                     .putInt(KEY_VERSION_CODE, update.versionCode)
                     .putString(KEY_SHA, asset.sha256 == null ? "" : asset.sha256)
+                    .putString(KEY_NOTES, plainNotes(update.notes))
                     .remove(KEY_READY_FILE)
                     .remove(KEY_READY_VERSION)
+                    .remove(KEY_READY_VERSION_CODE)
                     .remove(KEY_READY_SHA)
                     .remove(KEY_READY_PROMPTED)
-                    .apply();
+                    .commit();
+            Intent progress = new Intent(activity, UpdateDownloadService.class)
+                    .setAction(UpdateDownloadService.ACTION_START)
+                    .putExtra(UpdateDownloadService.EXTRA_DOWNLOAD_ID, downloadId)
+                    .putExtra(UpdateDownloadService.EXTRA_VERSION, update.versionName);
+            try {
+                ContextCompat.startForegroundService(activity, progress);
+            } catch (RuntimeException serviceError) {
+                Log.w(TAG, "No se pudo iniciar el progreso accesible de la descarga", serviceError);
+            }
             Toast.makeText(activity, R.string.update_download_started, Toast.LENGTH_LONG).show();
         } catch (Exception error) {
             Log.e(TAG, "No se pudo iniciar la descarga", error);
@@ -271,7 +323,8 @@ public final class UpdateChecker {
         }
     }
 
-    private static UpdateInfo.Asset selectAsset(UpdateInfo update) {
+    /** Returns the architecture key that will actually be downloaded. */
+    public static String selectedAbi(UpdateInfo update) {
         String abi = NativeAbi.get();
         String key;
         if (abi.contains("arm64")) {
@@ -281,12 +334,22 @@ public final class UpdateChecker {
         } else {
             key = "universal";
         }
-        UpdateInfo.Asset asset = update.assets.get(key);
-        if (asset == null && !"universal".equals(key)) {
-            asset = update.assets.get("universal");
+        if (update.assets.containsKey(key)) {
+            return key;
         }
-        if (asset == null) {
-            asset = update.assets.values().stream().findFirst().orElse(null);
+        if (update.assets.containsKey("universal")) {
+            return "universal";
+        }
+        for (String candidate : update.assets.keySet()) {
+            return candidate;
+        }
+        return key;
+    }
+
+    public static UpdateInfo.Asset selectAsset(UpdateInfo update) {
+        UpdateInfo.Asset asset = update.assets.get(selectedAbi(update));
+        if (asset == null && !update.assets.isEmpty()) {
+            asset = update.assets.values().iterator().next();
         }
         return asset;
     }
@@ -313,7 +376,24 @@ public final class UpdateChecker {
         SharedPreferences preferences = pending(activity);
         String file = preferences.getString(KEY_READY_FILE, "");
         String version = preferences.getString(KEY_READY_VERSION, "");
-        if (TextUtils.isEmpty(file) || !downloadedFile(activity, file).isFile()) {
+        if (TextUtils.isEmpty(file)) {
+            return;
+        }
+        int current = BuildConfig.VERSION_CODE;
+        int readyCode = preferences.getInt(KEY_READY_VERSION_CODE, 0);
+        boolean alreadyInstalled = readyCode > 0 && readyCode <= current;
+        int lastRun = PresetRepository.get(activity).getLastRunVersionCode();
+        boolean justUpdated = lastRun != 0 && lastRun != current;
+        // A legacy ready file (without a version code) is stale when the app has
+        // just been updated. Never offer to install an older or the same APK.
+        if (alreadyInstalled
+                || (readyCode == 0
+                && (version.equals(BuildConfig.VERSION_NAME) || justUpdated))) {
+            clearReadyUpdate(activity);
+            return;
+        }
+        if (!downloadedFile(activity, file).isFile()) {
+            clearReadyUpdate(activity);
             return;
         }
         if (preferences.getBoolean(KEY_READY_PROMPTED, false)) {
@@ -332,6 +412,22 @@ public final class UpdateChecker {
                 .show();
     }
 
+    /** Removes a stale ready-to-install state and its downloaded APK. */
+    public static void clearReadyUpdate(Context context) {
+        SharedPreferences preferences = pending(context);
+        String file = preferences.getString(KEY_READY_FILE, "");
+        if (!TextUtils.isEmpty(file)) {
+            downloadedFile(context, file).delete();
+        }
+        preferences.edit()
+                .remove(KEY_READY_FILE)
+                .remove(KEY_READY_VERSION)
+                .remove(KEY_READY_VERSION_CODE)
+                .remove(KEY_READY_SHA)
+                .remove(KEY_READY_PROMPTED)
+                .commit();
+    }
+
     public static void promptReadyUpdate(Activity activity) {
         SharedPreferences preferences = pending(activity);
         String file = preferences.getString(KEY_READY_FILE, "");
@@ -348,6 +444,167 @@ public final class UpdateChecker {
                 .putExtra(EXTRA_INSTALL_FILE, fileName)
                 .putExtra(EXTRA_INSTALL_VERSION, version);
         activity.startActivity(intent);
+    }
+
+    /**
+     * Shows the release notes of the version that was just installed. This is
+     * strictly a first-launch event: the pending notes are cleared afterwards
+     * and normal launches never show them again.
+     */
+    public static void showWhatsNewIfNeeded(Activity activity) {
+        if (activity.isFinishing() || activity.isDestroyed()) {
+            return;
+        }
+        PresetRepository repository = PresetRepository.get(activity);
+        int current = BuildConfig.VERSION_CODE;
+        int lastRun = repository.getLastRunVersionCode();
+        int pendingCode = repository.getPendingWhatsNewCode();
+        String pendingName = repository.getPendingWhatsNewName();
+        String pendingNotes = repository.getPendingWhatsNewNotes();
+
+        if (lastRun == 0) {
+            // The "last run" marker did not exist before 1.2. Distinguish a
+            // real update from a fresh installation with the package manager.
+            String notesToShow = null;
+            String versionName = BuildConfig.VERSION_NAME;
+            if (pendingCode == current && !TextUtils.isEmpty(pendingNotes)) {
+                notesToShow = pendingNotes;
+                if (!TextUtils.isEmpty(pendingName)) {
+                    versionName = pendingName;
+                }
+            } else if (wasUpdated(activity)) {
+                notesToShow = readBundledWhatsNew(activity);
+            }
+            repository.clearPendingWhatsNew();
+            repository.setLastRunVersionCode(current);
+            if (!TextUtils.isEmpty(notesToShow)) {
+                new MaterialAlertDialogBuilder(activity)
+                        .setTitle(activity.getString(R.string.whats_new_title, versionName))
+                        .setMessage(notesToShow)
+                        .setPositiveButton(R.string.whats_new_close, null)
+                        .show();
+            }
+            return;
+        }
+        if (lastRun == current) {
+            if (pendingCode == current) {
+                repository.clearPendingWhatsNew();
+            }
+            return;
+        }
+        if (lastRun > current) {
+            // Reinstalling an older version must not pop newer notes.
+            repository.clearPendingWhatsNew();
+            repository.setLastRunVersionCode(current);
+            return;
+        }
+
+        String notesToShow = null;
+        String versionName = BuildConfig.VERSION_NAME;
+        if (pendingCode == current && !TextUtils.isEmpty(pendingNotes)) {
+            notesToShow = pendingNotes;
+            if (!TextUtils.isEmpty(pendingName)) {
+                versionName = pendingName;
+            }
+        } else {
+            notesToShow = readBundledWhatsNew(activity);
+        }
+        if (!TextUtils.isEmpty(notesToShow)) {
+            new MaterialAlertDialogBuilder(activity)
+                    .setTitle(activity.getString(R.string.whats_new_title, versionName))
+                    .setMessage(notesToShow)
+                    .setPositiveButton(R.string.whats_new_close, null)
+                    .show();
+        }
+        repository.clearPendingWhatsNew();
+        repository.setLastRunVersionCode(current);
+    }
+
+    /** True when the package was installed over a previous version. */
+    private static boolean wasUpdated(Context context) {
+        try {
+            PackageInfo info = context.getPackageManager()
+                    .getPackageInfo(context.getPackageName(), 0);
+            return info.lastUpdateTime - info.firstInstallTime > 10_000L;
+        } catch (Exception error) {
+            Log.w(TAG, "No se pudo consultar la fecha de instalación", error);
+            return false;
+        }
+    }
+
+    /** Release notes bundled with the APK, used when no download metadata exists. */
+    private static String readBundledWhatsNew(Context context) {
+        try (InputStream stream = context.getAssets().open("whats_new.txt");
+             BufferedReader reader = new BufferedReader(
+                     new InputStreamReader(stream, StandardCharsets.UTF_8))) {
+            StringBuilder result = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                result.append(line).append('\n');
+            }
+            return result.toString().trim();
+        } catch (Exception error) {
+            Log.w(TAG, "No se pudieron leer las novedades incluidas", error);
+            return "";
+        }
+    }
+
+    public static void broadcastReady(Context context) {
+        try {
+            Intent ready = new Intent(ACTION_UPDATE_READY);
+            ready.setPackage(context.getPackageName());
+            context.sendBroadcast(ready);
+        } catch (RuntimeException error) {
+            Log.w(TAG, "No se pudo avisar que la actualización está lista", error);
+        }
+    }
+
+    /** Converts the release-notes markdown into readable plain text. */
+    public static String plainNotes(String notes) {
+        if (TextUtils.isEmpty(notes)) {
+            return "";
+        }
+        String normalized = notes.replace("\r\n", "\n").replace('\r', '\n');
+        StringBuilder result = new StringBuilder();
+        for (String rawLine : normalized.split("\n", -1)) {
+            String line = rawLine.trim();
+            if (line.matches("^\\|?[\\s:|-]+\\|?$") && line.contains("-")) {
+                continue;
+            }
+            if (line.matches("^[-*_]{3,}$")) {
+                continue;
+            }
+            if (line.startsWith("|") && line.endsWith("|") && line.length() > 2) {
+                String[] cells = line.substring(1, line.length() - 1).split("\\|");
+                StringBuilder row = new StringBuilder();
+                for (String cell : cells) {
+                    String value = cell.trim();
+                    if (value.isEmpty()) {
+                        continue;
+                    }
+                    if (row.length() > 0) {
+                        row.append(" · ");
+                    }
+                    row.append(value);
+                }
+                line = row.toString();
+            }
+            line = line.replaceFirst("^#{1,6}\\s*", "");
+            line = line.replace("**", "").replace("__", "").replace("`", "");
+            line = line.replaceAll("\\[([^\\]]+)\\]\\(([^)]+)\\)", "$1 ($2)");
+            if (line.startsWith("- ") || line.startsWith("* ")) {
+                line = "• " + line.substring(2);
+            }
+            if (line.isEmpty()) {
+                if (result.length() > 0 && result.charAt(result.length() - 1) != '\n') {
+                    result.append('\n');
+                }
+                result.append('\n');
+            } else {
+                result.append(line).append('\n');
+            }
+        }
+        return result.toString().replaceAll("\n{3,}", "\n\n").trim();
     }
 
     public static String sanitizeFileName(String name) {

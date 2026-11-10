@@ -85,9 +85,9 @@ public enum DeviceCategory {
                 return 3;
             case HDMI:
                 return 4;
-            case OTHER:
-                return 5;
             case SPEAKER:
+                return 5;
+            case OTHER:
                 return 6;
             case ALL:
             default:

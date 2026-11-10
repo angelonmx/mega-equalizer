@@ -1,7 +1,10 @@
 package com.angelonmx.megaequalizer;
 
 import android.Manifest;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
@@ -37,6 +40,17 @@ public class SettingsActivity extends BaseActivity {
     private MaterialButton buttonNotifications;
     private MaterialButton buttonInstallReady;
     private boolean binding;
+    private boolean readyReceiverRegistered;
+
+    private final BroadcastReceiver readyReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (!isFinishing() && !isDestroyed()) {
+                UpdateChecker.promptReadyUpdateIfNeeded(SettingsActivity.this);
+                refresh();
+            }
+        }
+    };
 
     private final ActivityResultLauncher<String> notificationPermissionLauncher =
             registerForActivityResult(new ActivityResultContracts.RequestPermission(), granted -> {
@@ -103,9 +117,36 @@ public class SettingsActivity extends BaseActivity {
     }
 
     @Override
+    protected void onStart() {
+        super.onStart();
+        if (!readyReceiverRegistered) {
+            ContextCompat.registerReceiver(
+                    this,
+                    readyReceiver,
+                    new IntentFilter(UpdateChecker.ACTION_UPDATE_READY),
+                    ContextCompat.RECEIVER_NOT_EXPORTED
+            );
+            readyReceiverRegistered = true;
+        }
+    }
+
+    @Override
     protected void onResume() {
         super.onResume();
+        UpdateChecker.promptReadyUpdateIfNeeded(this);
         refresh();
+    }
+
+    @Override
+    protected void onStop() {
+        if (readyReceiverRegistered) {
+            try {
+                unregisterReceiver(readyReceiver);
+            } catch (RuntimeException ignored) {
+            }
+            readyReceiverRegistered = false;
+        }
+        super.onStop();
     }
 
     private void refresh() {

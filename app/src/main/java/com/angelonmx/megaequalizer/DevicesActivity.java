@@ -27,7 +27,6 @@ import com.angelonmx.megaequalizer.data.Preset;
 import com.angelonmx.megaequalizer.data.PresetRepository;
 import com.angelonmx.megaequalizer.service.EqualizerService;
 import com.angelonmx.megaequalizer.util.AccessibilityUtils;
-import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
@@ -36,18 +35,24 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-/** Assigns presets to output categories and to specific Bluetooth devices. */
+/**
+ * Assigns presets to concrete audio outputs and to output categories. Every
+ * connected, bonded or remembered device gets its own persistent assignment,
+ * and categories remain available as a fallback.
+ */
 public class DevicesActivity extends BaseActivity {
 
     private PresetRepository repository;
     private LinearLayout containerOutputs;
     private LinearLayout containerCategories;
     private LinearLayout containerBluetooth;
+    private LinearLayout containerRemembered;
     private TextView textCurrentOutput;
     private TextView textCurrentPreset;
     private TextView textBluetoothPermission;
     private TextView textNoBluetooth;
     private TextView textNoOutputs;
+    private TextView textNoRemembered;
     private MaterialButton buttonBluetoothPermission;
     private boolean receiverRegistered;
 
@@ -80,11 +85,13 @@ public class DevicesActivity extends BaseActivity {
         containerOutputs = findViewById(R.id.containerOutputs);
         containerCategories = findViewById(R.id.containerCategories);
         containerBluetooth = findViewById(R.id.containerBluetooth);
+        containerRemembered = findViewById(R.id.containerRemembered);
         textCurrentOutput = findViewById(R.id.textCurrentOutput);
         textCurrentPreset = findViewById(R.id.textCurrentPreset);
         textBluetoothPermission = findViewById(R.id.textBluetoothPermission);
         textNoBluetooth = findViewById(R.id.textNoBluetooth);
         textNoOutputs = findViewById(R.id.textNoOutputs);
+        textNoRemembered = findViewById(R.id.textNoRemembered);
         buttonBluetoothPermission = findViewById(R.id.buttonBluetoothPermission);
 
         buttonBluetoothPermission.setOnClickListener(view ->
@@ -134,7 +141,7 @@ public class DevicesActivity extends BaseActivity {
         String foreground = perApp ? repository.getForegroundPackage() : "";
         Preset currentPreset = repository.resolvePreset(currentRoute, foreground, perApp);
 
-        textCurrentOutput.setText(currentRoute.displayName());
+        textCurrentOutput.setText(currentRoute.displayName(this));
         if (currentPreset == null) {
             textCurrentPreset.setText(R.string.current_output_no_preset);
         } else {
@@ -147,18 +154,27 @@ public class DevicesActivity extends BaseActivity {
         containerOutputs.removeAllViews();
         containerCategories.removeAllViews();
         containerBluetooth.removeAllViews();
+        containerRemembered.removeAllViews();
 
-        Set<String> added = new HashSet<>();
+        Set<String> connectedKeys = new HashSet<>();
         int connectedCount = 0;
         for (AudioRoute route : AudioRouteManager.listConnectedOutputs(this)) {
             if (route.isBluetooth()) {
                 continue;
             }
-            String target = route.categoryKey();
-            if (!added.add(target)) {
+            String target = route.targetKey();
+            if (!AudioRoute.isSpecificTarget(target) || !connectedKeys.add(target)) {
                 continue;
             }
-            addRow(containerOutputs, route.displayName(), target, false);
+            repository.rememberDevice(route);
+            addRow(
+                    containerOutputs,
+                    route.displayName(this),
+                    target,
+                    route.categoryKey(),
+                    true,
+                    route
+            );
             connectedCount++;
         }
         textNoOutputs.setVisibility(connectedCount == 0 ? View.VISIBLE : View.GONE);
@@ -168,7 +184,9 @@ public class DevicesActivity extends BaseActivity {
                     containerCategories,
                     getString(category.labelRes),
                     category.targetKey(),
-                    false
+                    category.targetKey(),
+                    false,
+                    null
             );
         }
 
@@ -182,28 +200,64 @@ public class DevicesActivity extends BaseActivity {
         Set<String> bluetoothKeys = new HashSet<>();
         for (AudioRoute route : bluetoothDevices) {
             String target = route.targetKey();
-            if (!bluetoothKeys.add(target)) {
+            if (!AudioRoute.isSpecificTarget(target) || !bluetoothKeys.add(target)) {
                 continue;
             }
+            repository.rememberDevice(route);
             String name = AudioRouteManager.describeBluetoothRoute(
                     this,
                     route,
                     route.connected
             );
-            addRow(containerBluetooth, name, target, true);
+            addRow(
+                    containerBluetooth,
+                    name,
+                    target,
+                    route.categoryKey(),
+                    true,
+                    route
+            );
             bluetoothCount++;
         }
         textNoBluetooth.setVisibility(bluetoothCount == 0 ? View.VISIBLE : View.GONE);
+
+        Set<String> knownKeys = new HashSet<>(connectedKeys);
+        knownKeys.addAll(bluetoothKeys);
+        int rememberedCount = 0;
+        for (AudioRoute route : repository.getRememberedRoutes()) {
+            String target = route.targetKey();
+            if (!AudioRoute.isSpecificTarget(target) || knownKeys.contains(target)) {
+                continue;
+            }
+            knownKeys.add(target);
+            addRow(
+                    containerRemembered,
+                    AudioRouteManager.describeAssignableRoute(this, route),
+                    target,
+                    route.categoryKey(),
+                    true,
+                    route
+            );
+            rememberedCount++;
+        }
+        textNoRemembered.setVisibility(rememberedCount == 0 ? View.VISIBLE : View.GONE);
     }
 
-    private void addRow(LinearLayout container, String name, String target, boolean specificBluetooth) {
+    private void addRow(
+            LinearLayout container,
+            String name,
+            String target,
+            String categoryKey,
+            boolean specific,
+            @Nullable AudioRoute route
+    ) {
         View row = LayoutInflater.from(this).inflate(R.layout.view_output_row, container, false);
         TextView nameView = row.findViewById(R.id.textOutputName);
         TextView presetView = row.findViewById(R.id.textOutputPreset);
         MaterialButton choose = row.findViewById(R.id.buttonChooseOutputPreset);
 
         nameView.setText(name);
-        String summary = assignmentSummary(target, specificBluetooth);
+        String summary = assignmentSummary(target, categoryKey, specific);
         presetView.setText(summary);
         choose.setContentDescription(getString(
                 R.string.output_assignment_description,
@@ -213,26 +267,24 @@ public class DevicesActivity extends BaseActivity {
         choose.setOnClickListener(view -> showPresetChooser(
                 name,
                 target,
-                specificBluetooth
+                specific,
+                route
         ));
         container.addView(row);
     }
 
-    private String assignmentSummary(String target, boolean specificBluetooth) {
+    private String assignmentSummary(String target, String categoryKey, boolean specific) {
         Preset direct = repository.getPreset(repository.getAssignedPresetId(target));
         if (direct != null) {
             return direct.name;
         }
-        if (specificBluetooth) {
-            Preset category = repository.getPreset(
-                    repository.getAssignedPresetId(DeviceCategory.BLUETOOTH.targetKey())
-            );
+        if (specific && !TextUtils.isEmpty(categoryKey) && !categoryKey.equals(target)) {
+            Preset category = repository.getPreset(repository.getAssignedPresetId(categoryKey));
             if (category != null) {
-                return getString(
-                        R.string.uses_category_format,
-                        getString(R.string.device_bluetooth),
-                        category.name
+                String categoryName = getString(
+                        DeviceCategory.fromKey(categoryKey.substring("type:".length())).labelRes
                 );
+                return getString(R.string.uses_category_format, categoryName, category.name);
             }
         }
         if (!target.equals(DeviceCategory.ALL.targetKey())) {
@@ -243,7 +295,7 @@ public class DevicesActivity extends BaseActivity {
                 return getString(R.string.all_devices_assignment_format, fallback.name);
             }
         }
-        if (specificBluetooth) {
+        if (specific) {
             return getString(R.string.no_specific_preset_short);
         }
         return getString(R.string.no_preset_short);
@@ -252,7 +304,8 @@ public class DevicesActivity extends BaseActivity {
     private void showPresetChooser(
             String outputName,
             String target,
-            boolean specificBluetooth
+            boolean specific,
+            @Nullable AudioRoute route
     ) {
         List<Preset> presets = repository.getPresets();
         if (presets.isEmpty()) {
@@ -267,7 +320,7 @@ public class DevicesActivity extends BaseActivity {
         }
 
         List<String> labels = new ArrayList<>();
-        labels.add(getString(specificBluetooth
+        labels.add(getString(specific
                 ? R.string.no_specific_preset_option
                 : R.string.no_preset_option));
         int checked = 0;
@@ -287,6 +340,9 @@ public class DevicesActivity extends BaseActivity {
                         checked,
                         (DialogInterface dialog, int which) -> {
                             dialog.dismiss();
+                            if (route != null) {
+                                repository.rememberDevice(route);
+                            }
                             if (which == 0) {
                                 repository.assign(target, null);
                             } else {

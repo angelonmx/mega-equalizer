@@ -1,0 +1,11 @@
+Novedades de Mega Equalizer 1.2
+
+• Presets por salida concreta: el preset se guarda con el nombre, el tipo, la dirección y los detalles de cada dispositivo, y se vuelve a aplicar cuando esa salida regresa.
+• Nueva sección Dispositivos recordados para ver y reasignar salidas que ya tienen un preset guardado.
+• Prioridad: salida concreta, luego categoría, luego «Cualquier dispositivo». Sin preset para la salida actual no se aplica ningún efecto.
+• El motor global cubre multimedia, notificaciones, llamadas y el canal de accesibilidad de TalkBack cuando el fabricante lo permite.
+• El servicio se mantiene activo y se recupera tras reinicios, actualizaciones o cierres agresivos.
+• Actualizaciones accesibles: el diálogo muestra el registro de cambios y las arquitecturas del dispositivo, instalada y de descarga.
+• TalkBack anuncia el progreso de la descarga, que también aparece en una notificación con opción de cancelar.
+• Al terminar la descarga se muestra el diálogo para abrir el instalador de Android.
+• Este registro de cambios se muestra una sola vez al abrir la versión recién instalada.

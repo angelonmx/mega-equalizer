@@ -10,6 +10,7 @@ import android.database.Cursor;
 import android.text.TextUtils;
 import android.util.Log;
 
+import com.angelonmx.megaequalizer.data.PresetRepository;
 import com.angelonmx.megaequalizer.util.HashUtils;
 
 import java.io.File;
@@ -90,6 +91,7 @@ public class UpdateDownloadReceiver extends BroadcastReceiver {
             String fileName = preferences.getString(UpdateChecker.KEY_FILE, "");
             String version = preferences.getString(UpdateChecker.KEY_VERSION, "");
             String sha256 = preferences.getString(UpdateChecker.KEY_SHA, "");
+            String notes = preferences.getString(UpdateChecker.KEY_NOTES, "");
             int expectedVersionCode = preferences.getInt(UpdateChecker.KEY_VERSION_CODE, 0);
             if (TextUtils.isEmpty(fileName)) {
                 fail(context, preferences, false);
@@ -133,14 +135,22 @@ public class UpdateDownloadReceiver extends BroadcastReceiver {
                 return RESULT_FAILED;
             }
 
+            PresetRepository.get(context).setPendingWhatsNew(
+                    expectedVersionCode,
+                    version,
+                    notes
+            );
             preferences.edit()
                     .remove(UpdateChecker.KEY_DOWNLOAD_ID)
+                    .remove(UpdateChecker.KEY_NOTES)
                     .putString(UpdateChecker.KEY_READY_FILE, fileName)
                     .putString(UpdateChecker.KEY_READY_VERSION, version)
+                    .putInt(UpdateChecker.KEY_READY_VERSION_CODE, expectedVersionCode)
                     .putString(UpdateChecker.KEY_READY_SHA, sha256)
                     .putBoolean(UpdateChecker.KEY_READY_PROMPTED, false)
-                    .apply();
+                    .commit();
             UpdateNotifications.showReady(context, fileName, version);
+            UpdateChecker.broadcastReady(context);
             return RESULT_READY;
         }
     }
@@ -152,6 +162,7 @@ public class UpdateDownloadReceiver extends BroadcastReceiver {
                 .remove(UpdateChecker.KEY_VERSION)
                 .remove(UpdateChecker.KEY_SHA)
                 .remove(UpdateChecker.KEY_VERSION_CODE)
+                .remove(UpdateChecker.KEY_NOTES)
                 .apply();
         if (verification) {
             UpdateNotifications.showVerificationFailed(context);

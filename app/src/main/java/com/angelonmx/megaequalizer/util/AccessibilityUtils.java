@@ -10,8 +10,10 @@ import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.PowerManager;
+import android.os.SystemClock;
 import android.provider.Settings;
 import android.text.TextUtils;
+import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityManager;
 
 import androidx.core.app.NotificationManagerCompat;
@@ -132,6 +134,34 @@ public final class AccessibilityUtils {
         }
         DateFormat format = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT);
         return format.format(new Date(timestamp));
+    }
+
+    /**
+     * Speaks an announcement through the active screen reader (TalkBack). It
+     * is used by the download service, which has no activity to attach a live
+     * region to. When no screen reader is active this method does nothing.
+     */
+    public static void announceToScreenReader(Context context, CharSequence text) {
+        if (TextUtils.isEmpty(text)) {
+            return;
+        }
+        try {
+            AccessibilityManager manager = (AccessibilityManager)
+                    context.getSystemService(Context.ACCESSIBILITY_SERVICE);
+            if (manager == null || !manager.isEnabled()) {
+                return;
+            }
+            AccessibilityEvent event = AccessibilityEvent.obtain(
+                    AccessibilityEvent.TYPE_ANNOUNCEMENT
+            );
+            event.setPackageName(context.getPackageName());
+            event.setClassName("com.angelonmx.megaequalizer.update.UpdateDownloadService");
+            event.setEventTime(SystemClock.uptimeMillis());
+            event.getText().add(text);
+            manager.sendAccessibilityEvent(event);
+        } catch (RuntimeException ignored) {
+            // Announcements are best-effort and must never break a download.
+        }
     }
 
     public static void openUrl(Context context, String url) {

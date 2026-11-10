@@ -43,6 +43,7 @@ public class MainActivity extends BaseActivity {
     private MaterialCardView cardAccessibility;
     private boolean bindingSwitch;
     private boolean receiverRegistered;
+    private boolean readyReceiverRegistered;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
 
@@ -50,6 +51,15 @@ public class MainActivity extends BaseActivity {
         @Override
         public void onReceive(Context context, Intent intent) {
             updateStatus();
+        }
+    };
+
+    private final BroadcastReceiver readyReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (!isFinishing() && !isDestroyed()) {
+                UpdateChecker.promptReadyUpdateIfNeeded(MainActivity.this);
+            }
         }
     };
 
@@ -120,6 +130,11 @@ public class MainActivity extends BaseActivity {
                 UpdateChecker.promptReadyUpdateIfNeeded(this);
             }
         }, 700L);
+        handler.postDelayed(() -> {
+            if (!isFinishing() && !isDestroyed()) {
+                UpdateChecker.showWhatsNewIfNeeded(this);
+            }
+        }, 1400L);
     }
 
     @Override
@@ -134,6 +149,15 @@ public class MainActivity extends BaseActivity {
             );
             receiverRegistered = true;
         }
+        if (!readyReceiverRegistered) {
+            ContextCompat.registerReceiver(
+                    this,
+                    readyReceiver,
+                    new IntentFilter(UpdateChecker.ACTION_UPDATE_READY),
+                    ContextCompat.RECEIVER_NOT_EXPORTED
+            );
+            readyReceiverRegistered = true;
+        }
         updateStatus();
     }
 
@@ -143,6 +167,7 @@ public class MainActivity extends BaseActivity {
         if (repository.isEnabled()) {
             EqualizerService.start(this);
         }
+        UpdateChecker.promptReadyUpdateIfNeeded(this);
         updateStatus();
     }
 
@@ -154,6 +179,13 @@ public class MainActivity extends BaseActivity {
             } catch (RuntimeException ignored) {
             }
             receiverRegistered = false;
+        }
+        if (readyReceiverRegistered) {
+            try {
+                unregisterReceiver(readyReceiver);
+            } catch (RuntimeException ignored) {
+            }
+            readyReceiverRegistered = false;
         }
         super.onStop();
     }
@@ -218,7 +250,7 @@ public class MainActivity extends BaseActivity {
         }
         setTextIfChanged(
                 textActiveDevice,
-                getString(R.string.current_device_format, route.displayName())
+                getString(R.string.current_device_format, route.displayName(this))
         );
 
         boolean showNoPreset = enabled && preset == null;

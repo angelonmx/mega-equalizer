@@ -166,7 +166,7 @@
 
     <!-- Devices -->
     <string name="devices_title">Dispositivos</string>
-    <string name="devices_intro">Asigna un preset a cada salida de audio. Si una salida no tiene preset, Mega Equalizer no aplica ningún efecto. Un dispositivo Bluetooth concreto tiene prioridad sobre la categoría Bluetooth, y esta sobre «Cualquier dispositivo».</string>
+    <string name="devices_intro">Asigna un preset a cada salida de audio. Si una salida no tiene preset, Mega Equalizer no aplica ningún efecto. Una salida concreta tiene prioridad sobre su categoría, y esta sobre «Cualquier dispositivo».</string>
     <string name="current_output_heading">Salida actual</string>
     <string name="current_output_format">%1$s</string>
     <string name="current_output_preset_format">Preset aplicado: %1$s</string>
@@ -175,9 +175,9 @@
     <string name="output_assignment_description">Elegir preset para %1$s. Actualmente: %2$s</string>
     <string name="preset_for_format">Preset para %1$s</string>
     <string name="no_preset_option">Sin preset (no aplicar nada)</string>
-    <string name="no_specific_preset_option">Sin preset específico (usar categoría Bluetooth)</string>
+    <string name="no_specific_preset_option">Sin preset específico (usar la categoría del dispositivo)</string>
     <string name="no_preset_short">Sin preset</string>
-    <string name="no_specific_preset_short">Categoría Bluetooth</string>
+    <string name="no_specific_preset_short">Sin preset específico</string>
     <string name="choose_preset">Elegir preset</string>
     <string name="accessibility_status_format">Servicio de accesibilidad: %1$s</string>
     <string name="notifications_status_format">Notificaciones: %1$s</string>
@@ -192,8 +192,44 @@
     <string name="bluetooth_heading">Dispositivos Bluetooth</string>
     <string name="bluetooth_connected_format">%1$s (conectado)</string>
     <string name="bluetooth_bonded_format">%1$s (vinculado)</string>
+    <string name="device_connected_detail_format">%1$s (conectado, %2$s)</string>
+    <string name="device_remembered_detail_format">%1$s (recordado, %2$s)</string>
+    <string name="device_name_with_type_format">%1$s (%2$s)</string>
+    <string name="output_type_speaker">altavoz</string>
+    <string name="output_type_earpiece">auricular</string>
+    <string name="output_type_wired_headset">auriculares con micrófono</string>
+    <string name="output_type_wired_headphones">auriculares</string>
+    <string name="output_type_line_analog">línea analógica</string>
+    <string name="output_type_line_digital">línea digital</string>
+    <string name="output_type_bluetooth">Bluetooth</string>
+    <string name="output_type_bluetooth_sco">Bluetooth para llamadas</string>
+    <string name="output_type_ble">Bluetooth LE</string>
+    <string name="output_type_ble_speaker">altavoz Bluetooth LE</string>
+    <string name="output_type_usb">USB</string>
+    <string name="output_type_usb_headset">auriculares USB</string>
+    <string name="output_type_usb_accessory">accesorio USB</string>
+    <string name="output_type_hdmi">HDMI</string>
+    <string name="output_type_hdmi_arc">HDMI ARC</string>
+    <string name="output_type_hdmi_earc">HDMI eARC</string>
+    <string name="output_type_aux">auxiliar</string>
+    <string name="output_type_hearing_aid">audífono</string>
+    <string name="output_type_dock">base</string>
+    <string name="output_type_ip">conexión de red</string>
+    <string name="output_type_bus">bus de audio</string>
+    <string name="output_type_fm">radio FM</string>
+    <string name="output_type_other">otra salida</string>
     <string name="connected_devices_heading">Dispositivos conectados</string>
     <string name="no_audio_outputs">No se detectaron salidas de audio.</string>
+    <string name="remembered_heading">Dispositivos recordados</string>
+    <string name="remembered_description">Salidas que ya tienen un preset guardado con su nombre y sus datos. El preset se aplicará en cuanto vuelvan a conectarse.</string>
+    <string name="no_remembered_devices">Todavía no hay dispositivos recordados.</string>
+    <string name="choose_specific_devices">Elegir dispositivos concretos</string>
+    <string name="specific_devices_title">Dispositivos concretos</string>
+    <string name="specific_devices_description">Marca las salidas de audio a las que se aplicará este preset. La asignación se guarda con el nombre, el tipo y la dirección del dispositivo, y se vuelve a aplicar cuando ese dispositivo es la salida actual.</string>
+    <string name="specific_devices_bluetooth_permission_note">Concede el permiso de dispositivos cercanos para ver también los dispositivos Bluetooth vinculados.</string>
+    <string name="specific_devices_summary">Dispositivos concretos: %1$d</string>
+    <string name="specific_devices_none_summary">Dispositivos concretos: ninguno</string>
+    <string name="no_specific_devices">No se encontraron salidas de audio concretas.</string>
 
     <!-- Apps -->
     <string name="apps_title">Aplicaciones</string>
@@ -283,8 +319,13 @@
     <string name="update_channel_name">Descargas de actualizaciones</string>
     <string name="update_channel_description">Notificaciones de actualizaciones descargadas de Mega Equalizer.</string>
     <string name="update_available_title">Actualización disponible</string>
-    <string name="update_available_message">Hay una versión nueva de Mega Equalizer: %1$s. ¿Quieres descargarla?</string>
+    <string name="update_available_message">Hay una versión nueva de Mega Equalizer: %1$s (versión %2$d). ¿Quieres descargarla?</string>
+    <string name="update_architecture_device_format">Arquitectura de tu dispositivo: %1$s</string>
+    <string name="update_architecture_installed_format">Arquitectura instalada: %1$s</string>
+    <string name="update_architecture_download_format">Arquitectura que se va a descargar: %1$s</string>
     <string name="update_notes_heading">Novedades</string>
+    <string name="update_notes_heading_format">Registro de cambios de la versión %1$s</string>
+    <string name="update_install_dialog_note">Al terminar la descarga se abrirá el diálogo de instalación de Android. Si el lector de pantalla está activo, escucharás el progreso de la descarga.</string>
     <string name="download_and_install">Descargar</string>
     <string name="later">Más tarde</string>
     <string name="update_downloading_title">Descargando actualización</string>
@@ -315,6 +356,24 @@
     <string name="update_install_open_failed">No se encontró el instalador de Android en este dispositivo.</string>
     <string name="update_install_permission_still_missing">Todavía no se permite instalar aplicaciones desde Mega Equalizer.</string>
     <string name="update_install_notification_action">Instalar</string>
+
+    <!-- Accessible download progress -->
+    <string name="update_download_progress_channel_name">Progreso de descargas</string>
+    <string name="update_download_progress_channel_description">Muestra y anuncia el progreso de la descarga de actualizaciones de Mega Equalizer.</string>
+    <string name="update_download_progress_title">Descargando Mega Equalizer %1$s</string>
+    <string name="update_download_progress_waiting">Esperando para comenzar la descarga…</string>
+    <string name="update_download_progress_indeterminate">Descargando… %1$s descargados</string>
+    <string name="update_download_progress_percent">%1$d%% · %2$s de %3$s</string>
+    <string name="update_download_progress_announcement">Descargando Mega Equalizer %1$s: %2$d por ciento. Se han descargado %3$s de %4$s.</string>
+    <string name="update_download_progress_announcement_nototal">Descargando Mega Equalizer %1$s: %2$s descargados.</string>
+    <string name="update_download_started_announcement">Descarga de Mega Equalizer %1$s iniciada. El progreso se anunciará a continuación.</string>
+    <string name="update_download_complete_announcement">Descarga de Mega Equalizer %1$s completada. Abriendo el diálogo de instalación.</string>
+    <string name="update_download_cancelled">Descarga de la actualización cancelada.</string>
+    <string name="update_download_cancel_action">Cancelar descarga</string>
+
+    <!-- What's new -->
+    <string name="whats_new_title">Novedades de Mega Equalizer %1$s</string>
+    <string name="whats_new_close">Entendido</string>
 
     <!-- Accessibility service -->
     <string name="accessibility_service_label">Mega Equalizer: audio y perfiles</string>

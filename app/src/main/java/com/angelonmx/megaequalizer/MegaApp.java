@@ -5,6 +5,7 @@ import android.app.Application;
 import androidx.appcompat.app.AppCompatDelegate;
 
 import com.angelonmx.megaequalizer.data.PresetRepository;
+import com.angelonmx.megaequalizer.service.ServiceWatchdog;
 
 public class MegaApp extends Application {
 
@@ -12,6 +13,7 @@ public class MegaApp extends Application {
     public void onCreate() {
         super.onCreate();
         applySavedTheme(this);
+        ServiceWatchdog.schedule(this);
     }
 
     /** Applies the saved system/light/dark theme to the whole process. */

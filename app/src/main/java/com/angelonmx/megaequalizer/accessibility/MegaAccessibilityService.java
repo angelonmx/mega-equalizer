@@ -30,6 +30,7 @@ public class MegaAccessibilityService extends AccessibilityService {
             "com.google.android.permissioncontroller",
             "com.android.settings"
     ));
+    private static final long WATCHDOG_INTERVAL_MS = 15000L;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private String pendingPackage;
@@ -45,6 +46,19 @@ public class MegaAccessibilityService extends AccessibilityService {
         PresetRepository.get(this).setForegroundPackage(pendingPackage);
         EqualizerService.requestRefresh(this);
     };
+    private final Runnable watchdog = new Runnable() {
+        @Override
+        public void run() {
+            if (PresetRepository.get(MegaAccessibilityService.this).isEnabled()) {
+                if (EqualizerService.isRunning()) {
+                    EqualizerService.requestRefresh(MegaAccessibilityService.this);
+                } else {
+                    EqualizerService.start(MegaAccessibilityService.this);
+                }
+            }
+            handler.postDelayed(this, WATCHDOG_INTERVAL_MS);
+        }
+    };
 
     @Override
     protected void onServiceConnected() {
@@ -53,6 +67,7 @@ public class MegaAccessibilityService extends AccessibilityService {
         // when the user enables the service. The engine processes the complete
         // output mix, including the accessibility stream, when supported.
         EqualizerService.requestRefresh(this);
+        scheduleWatchdog();
     }
 
     @Override
@@ -75,12 +90,20 @@ public class MegaAccessibilityService extends AccessibilityService {
 
     @Override
     public void onInterrupt() {
-        // Nothing to interrupt: this service only observes window changes.
+        // Nothing to interrupt: this service only observes window changes and
+        // keeps the audio engine alive.
+        EqualizerService.requestRefresh(this);
+    }
+
+    private void scheduleWatchdog() {
+        handler.removeCallbacks(watchdog);
+        handler.postDelayed(watchdog, WATCHDOG_INTERVAL_MS);
     }
 
     @Override
     public void onDestroy() {
         handler.removeCallbacks(applyForeground);
+        handler.removeCallbacks(watchdog);
         super.onDestroy();
         EqualizerService.requestRefresh(this);
     }

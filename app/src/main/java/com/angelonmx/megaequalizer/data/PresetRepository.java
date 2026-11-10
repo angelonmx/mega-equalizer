@@ -39,6 +39,7 @@ public final class PresetRepository {
     public static final String KEY_ASSIGNMENTS = "assignments_json";
     public static final String KEY_APP_OVERRIDES = "app_overrides_json";
     public static final String KEY_BT_NAMES = "bt_names_json";
+    public static final String KEY_DEVICE_INFO = "device_info_json";
     public static final String KEY_ENABLED = "eq_enabled";
     public static final String KEY_AUTO_UPDATE = "auto_update";
     public static final String KEY_PER_APP_ENABLED = "per_app_enabled";
@@ -51,6 +52,10 @@ public final class PresetRepository {
     public static final String KEY_STATUS_DEVICE = "status_device";
     public static final String KEY_STATUS_ENGINE = "status_engine";
     public static final String KEY_STATUS_ERROR = "status_error";
+    public static final String KEY_LAST_RUN_VERSION_CODE = "last_run_version_code";
+    public static final String KEY_PENDING_WHATS_NEW_CODE = "pending_whats_new_code";
+    public static final String KEY_PENDING_WHATS_NEW_NAME = "pending_whats_new_name";
+    public static final String KEY_PENDING_WHATS_NEW_NOTES = "pending_whats_new_notes";
 
     public static final String APP_NONE = "__none__";
     public static final String THEME_SYSTEM = "system";
@@ -227,7 +232,7 @@ public final class PresetRepository {
                 Log.e(TAG, "No se pudo serializar un preset", error);
             }
         }
-        preferences.edit().putString(KEY_PRESETS, array.toString()).apply();
+        preferences.edit().putString(KEY_PRESETS, array.toString()).commit();
     }
 
     // ------------------------------------------------------------- assignments
@@ -329,6 +334,13 @@ public final class PresetRepository {
             DeviceCategory category = DeviceCategory.fromKey(targetKey.substring("type:".length()));
             return context.getString(category.labelRes);
         }
+        JSONObject info = readObject(KEY_DEVICE_INFO).optJSONObject(targetKey);
+        if (info != null) {
+            String storedName = info.optString("name", "");
+            if (!TextUtils.isEmpty(storedName)) {
+                return storedName;
+            }
+        }
         if (targetKey.startsWith("bt:name:")) {
             return targetKey.substring("bt:name:".length());
         }
@@ -337,7 +349,61 @@ public final class PresetRepository {
             String name = readObject(KEY_BT_NAMES).optString(address, null);
             return TextUtils.isEmpty(name) ? context.getString(R.string.device_bluetooth) : name;
         }
+        if (targetKey.startsWith("dev:")) {
+            String[] parts = targetKey.split(":", 3);
+            if (parts.length >= 3) {
+                String decoded = parts[2].replace('_', ' ').trim();
+                if (!TextUtils.isEmpty(decoded)) {
+                    return decoded;
+                }
+            }
+            return context.getString(R.string.device_other);
+        }
         return targetKey;
+    }
+
+    /**
+     * Stores the name, type, category and address of a concrete output. The
+     * metadata lets the UI show a meaningful label even when the device is
+     * disconnected, and keeps the assignment tied to the same physical output.
+     */
+    public synchronized void rememberDevice(AudioRoute route) {
+        if (route == null) {
+            return;
+        }
+        String targetKey = route.targetKey();
+        if (!AudioRoute.isSpecificTarget(targetKey)) {
+            return;
+        }
+        JSONObject devices = readObject(KEY_DEVICE_INFO);
+        try {
+            JSONObject existing = devices.optJSONObject(targetKey);
+            boolean unchanged = existing != null
+                    && route.name.equals(existing.optString("name", ""))
+                    && route.type == existing.optInt("type", -1)
+                    && route.category.key.equals(existing.optString("category", ""))
+                    && TextUtils.equals(route.address, existing.optString("address", null));
+            if (unchanged) {
+                return;
+            }
+            JSONObject info = new JSONObject();
+            info.put("name", route.name);
+            info.put("type", route.type);
+            info.put("category", route.category.key);
+            if (!TextUtils.isEmpty(route.address)) {
+                info.put("address", route.address);
+            }
+            info.put("lastSeen", System.currentTimeMillis());
+            devices.put(targetKey, info);
+            writeObject(KEY_DEVICE_INFO, devices);
+            if (route.isBluetooth() && !TextUtils.isEmpty(route.name)) {
+                JSONObject names = readObject(KEY_BT_NAMES);
+                names.put(targetKey.startsWith("bt:") ? targetKey.substring("bt:".length()) : targetKey, route.name);
+                writeObject(KEY_BT_NAMES, names);
+            }
+        } catch (JSONException error) {
+            Log.e(TAG, "No se pudo guardar la información del dispositivo", error);
+        }
     }
 
     public synchronized void rememberBluetoothDevice(String targetKey, String name) {
@@ -351,6 +417,34 @@ public final class PresetRepository {
         } catch (JSONException error) {
             Log.e(TAG, "No se pudo guardar el nombre Bluetooth", error);
         }
+    }
+
+    /** Returns every output that was saved by a previous assignment. */
+    public synchronized List<AudioRoute> getRememberedRoutes() {
+        List<AudioRoute> routes = new ArrayList<>();
+        JSONObject devices = readObject(KEY_DEVICE_INFO);
+        Iterator<String> keys = devices.keys();
+        while (keys.hasNext()) {
+            String key = keys.next();
+            JSONObject info = devices.optJSONObject(key);
+            if (info == null) {
+                continue;
+            }
+            String name = info.optString("name", "");
+            if (TextUtils.isEmpty(name)) {
+                continue;
+            }
+            int type = info.optInt("type", -1);
+            if (AudioRoute.isVirtualOutputType(type)) {
+                continue;
+            }
+            DeviceCategory category = DeviceCategory.fromKey(info.optString("category", "other"));
+            String address = info.optString("address", null);
+            routes.add(new AudioRoute(type, category, name, address, false));
+        }
+        Collator collator = Collator.getInstance(Locale.getDefault());
+        Collections.sort(routes, (left, right) -> collator.compare(left.name, right.name));
+        return routes;
     }
 
     // ---------------------------------------------------------- app overrides
@@ -407,31 +501,21 @@ public final class PresetRepository {
         if (route == null) {
             return null;
         }
-        if (route.isBluetooth()) {
-            String specificKey = route.targetKey();
-            if (!specificKey.equals(route.categoryKey())) {
-                String specificId = getAssignedPresetId(specificKey);
-                if (!TextUtils.isEmpty(specificId)) {
-                    Preset specific = getPreset(specificId);
-                    if (specific != null) {
-                        return specific;
-                    }
+        String specificKey = route.targetKey();
+        if (!specificKey.equals(route.categoryKey())) {
+            String specificId = getAssignedPresetId(specificKey);
+            if (!TextUtils.isEmpty(specificId)) {
+                Preset specific = getPreset(specificId);
+                if (specific != null) {
+                    return specific;
                 }
             }
-            String bluetoothId = getAssignedPresetId(route.categoryKey());
-            if (!TextUtils.isEmpty(bluetoothId)) {
-                Preset bluetooth = getPreset(bluetoothId);
-                if (bluetooth != null) {
-                    return bluetooth;
-                }
-            }
-        } else {
-            String categoryId = getAssignedPresetId(route.categoryKey());
-            if (!TextUtils.isEmpty(categoryId)) {
-                Preset category = getPreset(categoryId);
-                if (category != null) {
-                    return category;
-                }
+        }
+        String categoryId = getAssignedPresetId(route.categoryKey());
+        if (!TextUtils.isEmpty(categoryId)) {
+            Preset category = getPreset(categoryId);
+            if (category != null) {
+                return category;
             }
         }
         String allId = getAssignedPresetId(DeviceCategory.ALL.targetKey());
@@ -464,7 +548,7 @@ public final class PresetRepository {
     }
 
     public void setEnabled(boolean enabled) {
-        preferences.edit().putBoolean(KEY_ENABLED, enabled).apply();
+        preferences.edit().putBoolean(KEY_ENABLED, enabled).commit();
     }
 
     public boolean isAutoUpdateEnabled() {
@@ -472,7 +556,7 @@ public final class PresetRepository {
     }
 
     public void setAutoUpdateEnabled(boolean enabled) {
-        preferences.edit().putBoolean(KEY_AUTO_UPDATE, enabled).apply();
+        preferences.edit().putBoolean(KEY_AUTO_UPDATE, enabled).commit();
     }
 
     public boolean isPerAppEnabled() {
@@ -480,7 +564,7 @@ public final class PresetRepository {
     }
 
     public void setPerAppEnabled(boolean enabled) {
-        preferences.edit().putBoolean(KEY_PER_APP_ENABLED, enabled).apply();
+        preferences.edit().putBoolean(KEY_PER_APP_ENABLED, enabled).commit();
     }
 
     public String getThemeMode() {
@@ -488,7 +572,7 @@ public final class PresetRepository {
     }
 
     public void setThemeMode(String mode) {
-        preferences.edit().putString(KEY_THEME, mode).apply();
+        preferences.edit().putString(KEY_THEME, mode).commit();
     }
 
     public long getLastUpdateCheck() {
@@ -511,6 +595,48 @@ public final class PresetRepository {
         }
     }
 
+    // --------------------------------------------------------------- versiones
+
+    public int getLastRunVersionCode() {
+        return preferences.getInt(KEY_LAST_RUN_VERSION_CODE, 0);
+    }
+
+    public void setLastRunVersionCode(int versionCode) {
+        preferences.edit().putInt(KEY_LAST_RUN_VERSION_CODE, versionCode).commit();
+    }
+
+    public int getPendingWhatsNewCode() {
+        return preferences.getInt(KEY_PENDING_WHATS_NEW_CODE, 0);
+    }
+
+    public String getPendingWhatsNewName() {
+        return preferences.getString(KEY_PENDING_WHATS_NEW_NAME, "");
+    }
+
+    public String getPendingWhatsNewNotes() {
+        return preferences.getString(KEY_PENDING_WHATS_NEW_NOTES, "");
+    }
+
+    /**
+     * Stores the release notes of the update that was downloaded. They are
+     * shown once, on the first launch of the freshly installed version.
+     */
+    public void setPendingWhatsNew(int versionCode, String versionName, String notes) {
+        preferences.edit()
+                .putInt(KEY_PENDING_WHATS_NEW_CODE, versionCode)
+                .putString(KEY_PENDING_WHATS_NEW_NAME, versionName == null ? "" : versionName)
+                .putString(KEY_PENDING_WHATS_NEW_NOTES, notes == null ? "" : notes)
+                .commit();
+    }
+
+    public void clearPendingWhatsNew() {
+        preferences.edit()
+                .remove(KEY_PENDING_WHATS_NEW_CODE)
+                .remove(KEY_PENDING_WHATS_NEW_NAME)
+                .remove(KEY_PENDING_WHATS_NEW_NOTES)
+                .commit();
+    }
+
     // ------------------------------------------------------------------ status
 
     public void updateServiceStatus(
@@ -524,7 +650,7 @@ public final class PresetRepository {
                 .putBoolean(KEY_STATUS_RUNNING, running)
                 .putString(KEY_STATUS_PRESET_ID, preset == null ? "" : preset.id)
                 .putString(KEY_STATUS_PRESET_NAME, preset == null ? "" : preset.name)
-                .putString(KEY_STATUS_DEVICE, route == null ? "" : route.displayName())
+                .putString(KEY_STATUS_DEVICE, route == null ? "" : route.displayName(context))
                 .putString(KEY_STATUS_ENGINE, engineLabel == null ? "" : engineLabel)
                 .putString(KEY_STATUS_ERROR, error == null ? "" : error)
                 .apply();
@@ -575,6 +701,6 @@ public final class PresetRepository {
     }
 
     private void writeObject(String key, JSONObject object) {
-        preferences.edit().putString(key, object.toString()).apply();
+        preferences.edit().putString(key, object.toString()).commit();
     }
 }

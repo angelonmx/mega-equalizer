@@ -8,7 +8,7 @@ Mega Equalizer aplica ecualizaciones por dispositivo y, de forma opcional, por a
 
 - **Accesible con TalkBack**: etiquetas claras, descripciones de estado, objetivos táctiles grandes, navegación por encabezados y anuncios hablados al guardar o asignar.
 - **Presets de 10 bandas**: 31 Hz a 16 kHz, ganancia previa (preamp), plantillas rápidas y edición con botones `−` / `+` además de los controles deslizantes.
-- **Asignación por salida de audio**:
+- **Asignación por salida de audio concreta**:
   - altavoz del teléfono;
   - auriculares o entrada auxiliar cableados;
   - USB;
@@ -16,11 +16,14 @@ Mega Equalizer aplica ecualizaciones por dispositivo y, de forma opcional, por a
   - Bluetooth: categoría completa o dispositivos Bluetooth concretos, conectados o emparejados;
   - otros dispositivos;
   - comodín «Cualquier dispositivo».
-- **Prioridad clara**: dispositivo Bluetooth concreto → categoría Bluetooth → «Cualquier dispositivo» → sin efecto.
+- **Persistencia por dispositivo**: cada asignación guarda el nombre, el tipo, la dirección y los detalles de la salida. El preset se vuelve a aplicar cuando ese dispositivo regresa, aunque esté desconectado durante un tiempo. La pantalla **Dispositivos recordados** permite revisarlos y reasignarlos.
+- **Prioridad clara**: salida concreta → categoría → «Cualquier dispositivo» → sin efecto.
 - **Cobertura global**: el motor principal procesa la mezcla completa de audio, incluidos los canales de accesibilidad y la voz de TalkBack, cuando el fabricante permite efectos globales.
 - **Perfiles por aplicación (opcionales y experimentales)**: usan el servicio de accesibilidad para detectar el paquete en primer plano y mantener activo el motor global.
+- **Servicio persistente**: bucle de salud cada 20 segundos, vigilancia desde accesibilidad cada 15 segundos, recuperación tras reinicios y actualizaciones, y reinicio automático si Android lo detiene.
 - **Servicio en primer plano**: muestra el preset activo en una notificación y permite desactivar la ecualización sin abrir la app.
-- **Actualizaciones integradas**: se comprueban únicamente al abrir la app, eligen el APK de tu arquitectura, verifican SHA-256 y abren el instalador del sistema.
+- **Actualizaciones accesibles**: se comprueban únicamente al abrir la app, muestran el registro de cambios y las arquitecturas del dispositivo, eligen el APK correcto, verifican SHA-256 y abren el instalador del sistema. TalkBack anuncia el progreso de la descarga y se muestra un diálogo al terminar.
+- **Novedades una sola vez**: al abrir por primera vez una versión recién instalada se muestra su registro de cambios.
 - **Tema claro, oscuro o automático**.
 
 ## Requisitos
@@ -34,9 +37,9 @@ Descarga el APK desde la página de [Releases](https://github.com/angelonmx/mega
 
 | Archivo | Arquitectura | Cuándo usarlo |
 | --- | --- | --- |
-| `mega-equalizer-1.1-arm64-v8a.apk` | ARM de 64 bits | La mayoría de teléfonos actuales |
-| `mega-equalizer-1.1-armeabi-v7a.apk` | ARM de 32 bits | Teléfonos antiguos o de gama baja |
-| `mega-equalizer-1.1-universal.apk` | ARM64, ARMv7 y x86_64 | Emuladores o si no estás seguro de tu arquitectura |
+| `mega-equalizer-1.2-arm64-v8a.apk` | ARM de 64 bits | La mayoría de teléfonos actuales |
+| `mega-equalizer-1.2-armeabi-v7a.apk` | ARM de 32 bits | Teléfonos antiguos o de gama baja |
+| `mega-equalizer-1.2-universal.apk` | ARM64, ARMv7 y x86_64 | Emuladores o si no estás seguro de tu arquitectura |
 
 Puedes consultar la arquitectura de tu teléfono en **Ajustes → Acerca del teléfono → Información del procesador**, o instalar la versión universal.
 
@@ -50,6 +53,12 @@ Cada actualización se verifica antes de instalarse:
 2. nombre del paquete;
 3. `versionCode` esperado.
 
+### Actualizaciones con TalkBack
+
+El diálogo de actualización muestra el registro de cambios, la arquitectura del dispositivo, la arquitectura instalada y la arquitectura que se descargará. Durante la descarga, una notificación en primer plano muestra el porcentaje y los tamaños descargado y total; TalkBack anuncia el inicio, el progreso (como mínimo cada 10 % o cada 20 segundos), la finalización y los errores. La descarga se puede cancelar desde la notificación.
+
+Al terminar la verificación se muestra un diálogo para abrir el instalador de Android. La primera vez que se abre la versión recién instalada aparece una sola vez su registro de cambios; las instalaciones nuevas no muestran ese aviso.
+
 ### Verificar la firma
 
 Todos los APK publicados se firman con la misma clave. Huella SHA-256 del certificado:
@@ -61,7 +70,7 @@ Todos los APK publicados se firman con la misma clave. Huella SHA-256 del certif
 También puedes comprobarlo con Android SDK Build Tools:
 
 ```bash
-apksigner verify --print-certs mega-equalizer-1.1-arm64-v8a.apk
+apksigner verify --print-certs mega-equalizer-1.2-arm64-v8a.apk
 ```
 
 ## Primeros pasos
@@ -75,9 +84,9 @@ apksigner verify --print-certs mega-equalizer-1.1-arm64-v8a.apk
 ### Prioridad de asignaciones
 
 ```text
-Dispositivo Bluetooth concreto
+Salida de audio concreta (altavoz, USB, HDMI, Bluetooth, etc.)
         ↓
-Categoría Bluetooth
+Categoría de la salida
         ↓
 Cualquier dispositivo
         ↓
@@ -85,6 +94,8 @@ Sin efecto
 ```
 
 Una asignación concreta siempre gana. «Sin preset» en un nivel inferior no anula un preset de un nivel superior; para dejar una salida sin efecto, no asignes nada en ningún nivel que la afecte.
+
+Cada salida concreta se identifica por su nombre, su tipo y su dirección. La asignación y esos datos se guardan localmente, de modo que el preset se recupera cuando el dispositivo vuelve a conectarse.
 
 ### Perfiles por aplicación
 
@@ -105,6 +116,18 @@ Mega Equalizer intenta, en este orden:
 3. efectos de sesión para reproductores que abren sesiones de efectos de audio compatibles.
 
 Los efectos globales se aplican a la mezcla completa del dispositivo: audio multimedia, notificaciones, llamadas y el canal de accesibilidad que usa TalkBack. Dependen del fabricante: algunos teléfonos limitan o bloquean los efectos sobre la mezcla global; en esos casos la app lo indica y puede seguir funcionando con reproductores compatibles. El ecualizador no puede procesar audio de apps que no exponen una sesión de audio al sistema.
+
+### Permanencia del servicio
+
+Mega Equalizer intenta que el motor nunca se quede apagado mientras la ecualización esté activa:
+
+- el servicio en primer plano devuelve `START_STICKY`;
+- un bucle interno comprueba y reaplica el efecto cada 20 segundos;
+- el servicio de accesibilidad, si está activo, refresca el motor cada 15 segundos;
+- un trabajo periódico de `JobScheduler` y un receptor de arranque lo recuperan después de reinicios o actualizaciones;
+- si Android pierde el control del efecto, se vuelve a crear y aplicar automáticamente.
+
+Los fabricantes con gestores de batería muy agresivos pueden seguir limitando la ejecución en segundo plano; en ese caso conviene excluir Mega Equalizer de la optimización de batería.
 
 ## Privacidad
 
@@ -173,8 +196,8 @@ app/build/outputs/apk/release/app-universal-release.apk
 3. Crea un tag y súbelo:
 
 ```bash
-git tag v1.1
-git push origin v1.1
+git tag v1.2
+git push origin v1.2
 ```
 
 El workflow `.github/workflows/release.yml` compila y firma los tres APK, genera `version.json` con sus SHA-256 y publica el release en GitHub. La app consulta:
@@ -203,7 +226,7 @@ app/src/main/java/com/angelonmx/megaequalizer/
 ├── update/         Comprobación, descarga y verificación de APK
 ├── ui/             Adaptadores y controles accesibles
 └── util/           Accesibilidad, hash y ABI
-app/src/main/assets/ Texto completo de la licencia GPL v3
+app/src/main/assets/ Texto completo de la licencia GPL v3 y novedades empaquetadas
 scripts/             Metadatos del release y bibliotecas nativas
 ```
 

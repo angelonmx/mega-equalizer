@@ -156,20 +156,20 @@
                     android:text="@string/device_bluetooth" />
 
                 <com.google.android.material.button.MaterialButton
-                    android:id="@+id/buttonChooseBluetooth"
+                    android:id="@+id/buttonChooseSpecific"
                     style="@style/Widget.Material3.Button.TextButton"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="@dimen/space_s"
-                    android:text="@string/choose_bluetooth_devices" />
+                    android:text="@string/choose_specific_devices" />
 
                 <TextView
-                    android:id="@+id/textBluetoothSummary"
+                    android:id="@+id/textSpecificSummary"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="@dimen/space_s"
                     android:layout_marginBottom="@dimen/space_xs"
-                    android:text="@string/bluetooth_none_summary"
+                    android:text="@string/specific_devices_none_summary"
                     android:textAppearance="?attr/textAppearanceBodySmall"
                     android:textColor="?attr/colorOnSurfaceVariant" />
 

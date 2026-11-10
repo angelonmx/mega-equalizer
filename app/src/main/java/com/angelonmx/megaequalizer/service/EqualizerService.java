@@ -53,12 +53,40 @@ public class EqualizerService extends Service {
 
     private static final String CHANNEL_ID = "mega_equalizer_status";
     private static final int NOTIFICATION_ID = 1001;
+    private static final long HEALTH_INTERVAL_MS = 20000L;
 
     private static volatile EqualizerService instance;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Map<Integer, String> sessionPackages = new HashMap<>();
     private final Runnable evaluateRunnable = this::evaluateAndApply;
+    private final Runnable healthRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (destroyed) {
+                return;
+            }
+            try {
+                if (repository.isEnabled()) {
+                    boolean changed = engine.ensureApplied();
+                    if (changed) {
+                        AudioRoute route = AudioRouteManager.getCurrentRoute(EqualizerService.this);
+                        repository.updateServiceStatus(
+                                true,
+                                engine.getCurrentPreset(),
+                                route,
+                                engine.getEngineLabel(),
+                                engine.getLastError()
+                        );
+                        sendStateBroadcast();
+                    }
+                }
+            } catch (Throwable error) {
+                Log.w(TAG, "La comprobación periódica del motor falló", error);
+            }
+            handler.postDelayed(this, HEALTH_INTERVAL_MS);
+        }
+    };
 
     private PresetRepository repository;
     private EqualizerEngine engine;
@@ -154,6 +182,7 @@ public class EqualizerService extends Service {
         instance = this;
         repository = PresetRepository.get(this);
         engine = new EqualizerEngine(this);
+        engine.setOnNeedsReapplyListener(this::scheduleEvaluate);
         audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
         createNotificationChannel();
         if (audioManager != null) {
@@ -197,10 +226,21 @@ public class EqualizerService extends Service {
             handleEffectSessionIntent(intent);
         }
         evaluateAndApply();
-        return START_STICKY;    }
+        scheduleHealthCheck();
+        return START_STICKY;
+    }
+
+    @Override
+    public void onTaskRemoved(Intent rootIntent) {
+        if (repository != null && repository.isEnabled()) {
+            ServiceWatchdog.schedule(this);
+        }
+        super.onTaskRemoved(rootIntent);
+    }
 
     @Override
     public void onDestroy() {
+        boolean shouldRestart = repository != null && repository.isEnabled();
         destroyed = true;
         handler.removeCallbacksAndMessages(null);
         if (audioManager != null) {
@@ -224,6 +264,9 @@ public class EqualizerService extends Service {
         instance = null;
         sendStateBroadcast();
         foregroundStarted = false;
+        if (shouldRestart) {
+            ServiceWatchdog.schedule(this);
+        }
         super.onDestroy();
     }
 
@@ -287,6 +330,7 @@ public class EqualizerService extends Service {
             return;
         }
         AudioRoute route = AudioRouteManager.getCurrentRoute(this);
+        repository.rememberDevice(route);
         boolean accessibilityEnabled = AccessibilityUtils.isServiceEnabled(this);
         boolean perApp = repository.isPerAppEnabled() && accessibilityEnabled;
         String foregroundPackage = perApp ? repository.getForegroundPackage() : "";
@@ -334,7 +378,13 @@ public class EqualizerService extends Service {
         handler.postDelayed(evaluateRunnable, 450L);
     }
 
+    private void scheduleHealthCheck() {
+        handler.removeCallbacks(healthRunnable);
+        handler.postDelayed(healthRunnable, HEALTH_INTERVAL_MS);
+    }
+
     private void shutdown() {
+        handler.removeCallbacks(healthRunnable);
         if (engine != null) {
             engine.releaseAll();
         }
@@ -385,7 +435,7 @@ public class EqualizerService extends Service {
             String deviceName = repository.getActiveDeviceName();
             if (presetName == null || presetName.isEmpty()) {
                 if (deviceName == null || deviceName.isEmpty()) {
-                    deviceName = AudioRouteManager.getCurrentRoute(this).displayName();
+                    deviceName = AudioRouteManager.getCurrentRoute(this).displayName(this);
                 }
                 text = getString(R.string.notification_text_no_preset_format, deviceName);
             } else {

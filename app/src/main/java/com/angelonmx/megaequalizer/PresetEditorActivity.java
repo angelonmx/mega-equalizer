@@ -1,6 +1,5 @@
 package com.angelonmx.megaequalizer;
 
-import android.Manifest;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
@@ -14,8 +13,6 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.OnBackPressedCallback;
-import androidx.activity.result.ActivityResultLauncher;
-import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.Nullable;
 
 import com.angelonmx.megaequalizer.audio.AudioRouteManager;
@@ -91,7 +88,7 @@ public class PresetEditorActivity extends BaseActivity {
     private TextInputEditText editName;
     private BandControlView preampControl;
     private final List<BandControlView> bandControls = new ArrayList<>();
-    private final Set<String> selectedBluetoothKeys = new LinkedHashSet<>();
+    private final Set<String> selectedDeviceKeys = new LinkedHashSet<>();
 
     private MaterialCheckBox checkAll;
     private MaterialCheckBox checkSpeaker;
@@ -101,21 +98,8 @@ public class PresetEditorActivity extends BaseActivity {
     private MaterialCheckBox checkAux;
     private MaterialCheckBox checkHdmi;
     private MaterialCheckBox checkOther;
-    private TextView textBluetoothSummary;
-    private MaterialButton buttonChooseBluetooth;
-
-    private final ActivityResultLauncher<String> bluetoothPermissionLauncher =
-            registerForActivityResult(new ActivityResultContracts.RequestPermission(), granted -> {
-                if (granted) {
-                    showBluetoothPicker();
-                } else {
-                    Toast.makeText(
-                            this,
-                            R.string.bluetooth_permission_denied,
-                            Toast.LENGTH_LONG
-                    ).show();
-                }
-            });
+    private TextView textSpecificSummary;
+    private MaterialButton buttonChooseSpecific;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -147,12 +131,12 @@ public class PresetEditorActivity extends BaseActivity {
         checkAux = findViewById(R.id.checkAux);
         checkHdmi = findViewById(R.id.checkHdmi);
         checkOther = findViewById(R.id.checkOther);
-        textBluetoothSummary = findViewById(R.id.textBluetoothSummary);
-        buttonChooseBluetooth = findViewById(R.id.buttonChooseBluetooth);
+        textSpecificSummary = findViewById(R.id.textSpecificSummary);
+        buttonChooseSpecific = findViewById(R.id.buttonChooseSpecific);
 
         buildControls();
         loadAssignments();
-        updateBluetoothSummary();
+        updateSpecificSummary();
 
         editName.addTextChangedListener(new TextWatcher() {
             @Override
@@ -186,7 +170,7 @@ public class PresetEditorActivity extends BaseActivity {
         checkHdmi.setOnClickListener(dirtyClick);
         checkOther.setOnClickListener(dirtyClick);
 
-        buttonChooseBluetooth.setOnClickListener(view -> chooseBluetooth());
+        buttonChooseSpecific.setOnClickListener(view -> chooseSpecificDevices());
         findViewById(R.id.buttonTemplate).setOnClickListener(view -> showTemplates());
         findViewById(R.id.buttonSave).setOnClickListener(view -> savePreset());
 
@@ -258,8 +242,8 @@ public class PresetEditorActivity extends BaseActivity {
                 checkHdmi.setChecked(true);
             } else if (target.equals(DeviceCategory.OTHER.targetKey())) {
                 checkOther.setChecked(true);
-            } else if (target.startsWith("bt:") || target.startsWith("type:")) {
-                selectedBluetoothKeys.add(target);
+            } else if (target.startsWith("bt:") || target.startsWith("dev:")) {
+                selectedDeviceKeys.add(target);
             }
         }
     }
@@ -315,22 +299,12 @@ public class PresetEditorActivity extends BaseActivity {
         }
     }
 
-    private void chooseBluetooth() {
-        if (!AudioRouteManager.hasBluetoothPermission(this)) {
-            new MaterialAlertDialogBuilder(this)
-                    .setTitle(R.string.bluetooth_picker_title)
-                    .setMessage(R.string.bluetooth_permission_needed)
-                    .setNegativeButton(R.string.cancel, null)
-                    .setPositiveButton(R.string.grant_bluetooth_permission, (dialog, which) ->
-                            bluetoothPermissionLauncher.launch(Manifest.permission.BLUETOOTH_CONNECT))
-                    .show();
-            return;
-        }
-        showBluetoothPicker();
+    private void chooseSpecificDevices() {
+        showSpecificDevicePicker();
     }
 
-    private void showBluetoothPicker() {
-        List<AudioRoute> devices = AudioRouteManager.listBluetoothDevices(this);
+    private void showSpecificDevicePicker() {
+        List<AudioRoute> devices = AudioRouteManager.listAssignableDevices(this);
         final List<String> keys = new ArrayList<>();
         final List<String> labels = new ArrayList<>();
         for (AudioRoute route : devices) {
@@ -339,26 +313,30 @@ public class PresetEditorActivity extends BaseActivity {
                 continue;
             }
             keys.add(key);
-            labels.add(AudioRouteManager.describeBluetoothRoute(this, route, route.connected));
+            labels.add(AudioRouteManager.describeAssignableRoute(this, route));
         }
-        for (String selected : selectedBluetoothKeys) {
+        for (String selected : selectedDeviceKeys) {
             if (!keys.contains(selected)) {
                 keys.add(selected);
                 labels.add(repository.getTargetLabel(selected));
             }
         }
         if (keys.isEmpty()) {
-            Toast.makeText(this, R.string.no_bluetooth_devices, Toast.LENGTH_LONG).show();
+            Toast.makeText(this, R.string.no_specific_devices, Toast.LENGTH_LONG).show();
             return;
         }
 
         final boolean[] checked = new boolean[keys.size()];
         for (int i = 0; i < keys.size(); i++) {
-            checked[i] = selectedBluetoothKeys.contains(keys.get(i));
+            checked[i] = selectedDeviceKeys.contains(keys.get(i));
+        }
+        String description = getString(R.string.specific_devices_description);
+        if (!AudioRouteManager.hasBluetoothPermission(this)) {
+            description += "\n\n" + getString(R.string.specific_devices_bluetooth_permission_note);
         }
         new MaterialAlertDialogBuilder(this)
-                .setTitle(R.string.bluetooth_picker_title)
-                .setMessage(R.string.bluetooth_picker_description)
+                .setTitle(R.string.specific_devices_title)
+                .setMessage(description)
                 .setMultiChoiceItems(
                         labels.toArray(new CharSequence[0]),
                         checked,
@@ -366,40 +344,40 @@ public class PresetEditorActivity extends BaseActivity {
                 )
                 .setNegativeButton(R.string.cancel, null)
                 .setPositiveButton(R.string.save, (dialog, which) -> {
-                    selectedBluetoothKeys.clear();
+                    selectedDeviceKeys.clear();
                     for (int i = 0; i < keys.size(); i++) {
                         if (checked[i]) {
-                            selectedBluetoothKeys.add(keys.get(i));
+                            selectedDeviceKeys.add(keys.get(i));
                         }
                     }
                     for (AudioRoute route : devices) {
-                        if (selectedBluetoothKeys.contains(route.targetKey())) {
-                            repository.rememberBluetoothDevice(route.targetKey(), route.name);
+                        if (selectedDeviceKeys.contains(route.targetKey())) {
+                            repository.rememberDevice(route);
                         }
                     }
                     dirty = true;
-                    updateBluetoothSummary();
+                    updateSpecificSummary();
                     announce(getString(
-                            R.string.bluetooth_specific_summary,
-                            selectedBluetoothKeys.size()
+                            R.string.specific_devices_summary,
+                            selectedDeviceKeys.size()
                     ));
                 })
                 .show();
     }
 
-    private void updateBluetoothSummary() {
+    private void updateSpecificSummary() {
         String summary;
-        if (selectedBluetoothKeys.isEmpty()) {
-            summary = getString(R.string.bluetooth_none_summary);
+        if (selectedDeviceKeys.isEmpty()) {
+            summary = getString(R.string.specific_devices_none_summary);
         } else {
             summary = getString(
-                    R.string.bluetooth_specific_summary,
-                    selectedBluetoothKeys.size()
+                    R.string.specific_devices_summary,
+                    selectedDeviceKeys.size()
             );
         }
-        textBluetoothSummary.setText(summary);
-        buttonChooseBluetooth.setContentDescription(getString(
-                R.string.choose_bluetooth_devices
+        textSpecificSummary.setText(summary);
+        buttonChooseSpecific.setContentDescription(getString(
+                R.string.choose_specific_devices
         ) + ". " + summary);
     }
 
@@ -478,7 +456,7 @@ public class PresetEditorActivity extends BaseActivity {
         if (checkOther.isChecked()) {
             targets.add(DeviceCategory.OTHER.targetKey());
         }
-        targets.addAll(selectedBluetoothKeys);
+        targets.addAll(selectedDeviceKeys);
         return targets;
     }
 
