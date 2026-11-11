@@ -48,6 +48,18 @@ public final class AudioSessionInfo {
                 || "USAGE_NOTIFICATION_COMMUNICATION_REQUEST".equals(usage);
     }
 
+    public boolean isAccessibilityUsage() {
+        return "USAGE_ASSISTANCE_ACCESSIBILITY".equals(usage);
+    }
+
+    public boolean isNotificationUsage() {
+        return usage != null && usage.startsWith("USAGE_NOTIFICATION");
+    }
+
+    public boolean isAlarmUsage() {
+        return "USAGE_ALARM".equals(usage);
+    }
+
     /** Human readable stream name used by the accessibility summaries. */
     @NonNull
     public String usageLabel() {

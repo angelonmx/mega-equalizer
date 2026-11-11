@@ -379,7 +379,7 @@
     <string name="coverage_title">Cobertura total</string>
     <string name="coverage_intro_heading">Ecualización para todos los canales</string>
     <string name="coverage_intro_text">El efecto global de Android suele cubrir multimedia, notificaciones y accesibilidad. Algunos equipos lo omiten en llamadas, alarmas o canales del fabricante. La cobertura total descubre las sesiones de audio activas y les añade un ecualizador propio, sin grabar el audio ni enviar datos a Internet.</string>
-    <string name="coverage_requirements_text">Para descubrir sesiones sin root, Mega Equalizer se conecta a la depuración inalámbrica de este mismo equipo. Necesitas Android 11 o superior. El emparejamiento se hace dentro de la app y la identidad ADB se guarda solo en el almacenamiento privado de Mega Equalizer.</string>
+    <string name="coverage_requirements_text">Para descubrir sesiones sin root, Mega Equalizer usa Shizuku si lo tienes instalado y autorizado. En equipos rooteados, usa el superusuario para ejecutar «dumpsys audio». La identidad y los datos se guardan solo en el almacenamiento privado de Mega Equalizer.</string>
     <string name="coverage_enable">Activar cobertura total</string>
     <string name="coverage_enable_description">Si está desactivada, solo se aplica el efecto global. Si la activas, Mega Equalizer consulta las sesiones activas cada pocos segundos mientras el servicio está encendido.</string>
     <string name="coverage_mode_heading">Modo de cobertura</string>

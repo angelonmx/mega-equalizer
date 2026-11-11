@@ -5,7 +5,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Process;
 import android.view.View;
@@ -27,7 +26,6 @@ import com.angelonmx.megaequalizer.util.AccessibilityUtils;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.materialswitch.MaterialSwitch;
-import com.google.android.material.textfield.TextInputEditText;
 
 import java.util.List;
 
@@ -46,18 +44,11 @@ public class TotalCoverageActivity extends BaseActivity {
     private RadioGroup groupMode;
     private RadioGroup groupBackend;
     private View cardShizuku;
-    private View cardAdb;
     private View cardRoot;
-    private TextInputEditText editConnectPort;
-    private TextInputEditText editPairingPort;
-    private TextInputEditText editPairingCode;
-    private MaterialButton buttonPair;
-    private MaterialButton buttonTestConnection;
     private MaterialButton buttonTestRoot;
     private MaterialButton buttonRequestShizuku;
     private MaterialButton buttonOpenShizuku;
     private TextView textShizukuStatus;
-    private TextView textPairingStatus;
     private TextView textRootStatus;
     private TextView textCoverageStatus;
     private TextView textCoverageDetail;
@@ -116,18 +107,11 @@ public class TotalCoverageActivity extends BaseActivity {
         groupMode = findViewById(R.id.groupMode);
         groupBackend = findViewById(R.id.groupBackend);
         cardShizuku = findViewById(R.id.cardShizuku);
-        cardAdb = findViewById(R.id.cardAdb);
         cardRoot = findViewById(R.id.cardRoot);
-        editConnectPort = findViewById(R.id.editConnectPort);
-        editPairingPort = findViewById(R.id.editPairingPort);
-        editPairingCode = findViewById(R.id.editPairingCode);
-        buttonPair = findViewById(R.id.buttonPair);
-        buttonTestConnection = findViewById(R.id.buttonTestConnection);
         buttonTestRoot = findViewById(R.id.buttonTestRoot);
         buttonRequestShizuku = findViewById(R.id.buttonRequestShizuku);
         buttonOpenShizuku = findViewById(R.id.buttonOpenShizuku);
         textShizukuStatus = findViewById(R.id.textShizukuStatus);
-        textPairingStatus = findViewById(R.id.textPairingStatus);
         textRootStatus = findViewById(R.id.textRootStatus);
         textCoverageStatus = findViewById(R.id.textCoverageStatus);
         textCoverageDetail = findViewById(R.id.textCoverageDetail);
@@ -175,8 +159,6 @@ public class TotalCoverageActivity extends BaseActivity {
                 repository.setCoverageBackend(PresetRepository.COVERAGE_BACKEND_ROOT);
             } else if (checkedId == R.id.radioShizuku) {
                 repository.setCoverageBackend(PresetRepository.COVERAGE_BACKEND_SHIZUKU);
-            } else if (checkedId == R.id.radioAdb) {
-                repository.setCoverageBackend(PresetRepository.COVERAGE_BACKEND_ADB);
             } else {
                 repository.setCoverageBackend(PresetRepository.COVERAGE_BACKEND_AUTO);
             }
@@ -184,14 +166,11 @@ public class TotalCoverageActivity extends BaseActivity {
             requestCoverageRefresh();
         });
 
-        buttonPair.setOnClickListener(view -> pairAndConnect());
-        buttonTestConnection.setOnClickListener(view -> testConnection());
         buttonTestRoot.setOnClickListener(view -> testRoot());
         buttonRequestShizuku.setOnClickListener(view -> requestShizukuPermission());
         buttonOpenShizuku.setOnClickListener(view -> openShizuku());
         findViewById(R.id.buttonRefreshCoverage).setOnClickListener(view -> {
             requestCoverageRefresh();
-            textPairingStatus.setText(R.string.coverage_test_in_progress);
             refreshStatus();
         });
 
@@ -261,24 +240,7 @@ public class TotalCoverageActivity extends BaseActivity {
                 ? R.id.radioSessionOnly
                 : R.id.radioAuto);
         groupBackend.check(backendRadioId(repository.getCoverageBackend()));
-        int connectPort = repository.getAdbConnectPort();
-        int pairingPort = repository.getAdbPairingPort();
-        if (editConnectPort.getText() == null || editConnectPort.getText().length() == 0) {
-            editConnectPort.setText(connectPort > 0 ? String.valueOf(connectPort) : "");
-        }
-        if (editPairingPort.getText() == null || editPairingPort.getText().length() == 0) {
-            editPairingPort.setText(pairingPort > 0 ? String.valueOf(pairingPort) : "");
-        }
         binding = false;
-
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
-            textPairingStatus.setText(R.string.coverage_adb_android_requirement);
-        } else if (repository.isAdbPaired() && repository.getAdbConnectPort() > 0) {
-            textPairingStatus.setText(getString(
-                    R.string.coverage_port_saved_format,
-                    repository.getAdbConnectPort()
-            ));
-        }
     }
 
     private int backendRadioId(String backend) {
@@ -287,9 +249,6 @@ public class TotalCoverageActivity extends BaseActivity {
         }
         if (PresetRepository.COVERAGE_BACKEND_SHIZUKU.equals(backend)) {
             return R.id.radioShizuku;
-        }
-        if (PresetRepository.COVERAGE_BACKEND_ADB.equals(backend)) {
-            return R.id.radioAdb;
         }
         return R.id.radioBackendAuto;
     }
@@ -300,34 +259,23 @@ public class TotalCoverageActivity extends BaseActivity {
         boolean shizuku = PresetRepository.COVERAGE_BACKEND_SHIZUKU.equals(backend)
                 || PresetRepository.COVERAGE_BACKEND_AUTO.equals(backend)
                 || PresetRepository.COVERAGE_BACKEND_NONE.equals(backend);
-        boolean adb = PresetRepository.COVERAGE_BACKEND_ADB.equals(backend)
-                || PresetRepository.COVERAGE_BACKEND_AUTO.equals(backend)
-                || PresetRepository.COVERAGE_BACKEND_NONE.equals(backend);
         cardShizuku.setVisibility(shizuku ? View.VISIBLE : View.GONE);
-        cardAdb.setVisibility(adb ? View.VISIBLE : View.GONE);
         cardRoot.setVisibility(root ? View.VISIBLE : View.GONE);
-        buttonPair.setEnabled(Build.VERSION.SDK_INT >= Build.VERSION_CODES.R);
         updateShizukuStatus();
     }
 
     private void startCoverage() {
         String backend = repository.getCoverageBackend();
-        if (PresetRepository.COVERAGE_BACKEND_ADB.equals(backend)
-                && repository.getAdbConnectPort() <= 0) {
-            textCoverageStatus.setText(R.string.coverage_config_missing_title);
-            textCoverageDetail.setText(R.string.coverage_config_missing_message);
-            textCoverageSessions.setText("");
-        } else if (PresetRepository.COVERAGE_BACKEND_SHIZUKU.equals(backend)
+        if (PresetRepository.COVERAGE_BACKEND_SHIZUKU.equals(backend)
                 && !ShizukuBridge.isAvailable()) {
             textCoverageStatus.setText(R.string.coverage_status_shizuku_unavailable);
             textCoverageDetail.setText(R.string.coverage_shizuku_unavailable_detail);
             textCoverageSessions.setText("");
         } else if ((PresetRepository.COVERAGE_BACKEND_AUTO.equals(backend)
                 || PresetRepository.COVERAGE_BACKEND_NONE.equals(backend))
-                && !ShizukuBridge.isAvailable()
-                && repository.getAdbConnectPort() <= 0) {
-            textCoverageStatus.setText(R.string.coverage_config_missing_title);
-            textCoverageDetail.setText(R.string.coverage_config_missing_message);
+                && !ShizukuBridge.isAvailable()) {
+            textCoverageStatus.setText(R.string.coverage_status_shizuku_unavailable);
+            textCoverageDetail.setText(R.string.coverage_shizuku_unavailable_detail);
             textCoverageSessions.setText("");
         }
         requestCoverageRefresh();
@@ -417,66 +365,6 @@ public class TotalCoverageActivity extends BaseActivity {
                 .show();
     }
 
-    private void pairAndConnect() {
-        Integer pairingPort = parsePort(editPairingPort);
-        Integer connectPort = parsePort(editConnectPort);
-        if (pairingPort == null || connectPort == null) {
-            Toast.makeText(this, R.string.coverage_port_invalid, Toast.LENGTH_LONG).show();
-            return;
-        }
-        String code = textOf(editPairingCode);
-        if (code.length() != 6) {
-            Toast.makeText(this, R.string.coverage_pairing_code_invalid, Toast.LENGTH_LONG)
-                    .show();
-            return;
-        }
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
-            Toast.makeText(this, R.string.coverage_adb_android_requirement, Toast.LENGTH_LONG)
-                    .show();
-            return;
-        }
-        setPairingBusy(true, getString(R.string.coverage_pairing_in_progress));
-        CoverageController.pairAndVerify(
-                getApplicationContext(),
-                pairingPort,
-                code,
-                connectPort,
-                (success, message) -> runOnUiThread(() -> {
-                    setPairingBusy(false, message);
-                    if (success) {
-                        repository.setTotalCoverageEnabled(true);
-                        bindValues();
-                        startCoverage();
-                        announce(message);
-                    }
-                    refreshStatus();
-                })
-        );
-    }
-
-    private void testConnection() {
-        Integer connectPort = parsePort(editConnectPort);
-        if (connectPort == null) {
-            Toast.makeText(this, R.string.coverage_port_invalid, Toast.LENGTH_LONG).show();
-            return;
-        }
-        setPairingBusy(true, getString(R.string.coverage_test_in_progress));
-        CoverageController.testConnection(
-                getApplicationContext(),
-                connectPort,
-                (success, message) -> runOnUiThread(() -> {
-                    setPairingBusy(false, message);
-                    if (success) {
-                        repository.setTotalCoverageEnabled(true);
-                        bindValues();
-                        startCoverage();
-                        announce(message);
-                    }
-                    refreshStatus();
-                })
-        );
-    }
-
     private void testRoot() {
         buttonTestRoot.setEnabled(false);
         textRootStatus.setText(R.string.coverage_root_test_in_progress);
@@ -505,16 +393,6 @@ public class TotalCoverageActivity extends BaseActivity {
         }, "coverage-root-test").start();
     }
 
-    private void setPairingBusy(boolean busy, String message) {
-        buttonPair.setEnabled(!busy && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R);
-        buttonTestConnection.setEnabled(!busy);
-        editConnectPort.setEnabled(!busy);
-        editPairingPort.setEnabled(!busy);
-        editPairingCode.setEnabled(!busy);
-        textPairingStatus.setText(message);
-        announce(message);
-    }
-
     private void refreshStatus() {
         boolean enabled = repository.isTotalCoverageEnabled();
         String status = repository.getCoverageStatus();
@@ -532,22 +410,5 @@ public class TotalCoverageActivity extends BaseActivity {
 
     private void requestCoverageRefresh() {
         EqualizerService.requestRefresh(this);
-    }
-
-    private static String textOf(TextInputEditText editText) {
-        return editText.getText() == null ? "" : editText.getText().toString().trim();
-    }
-
-    private static Integer parsePort(TextInputEditText editText) {
-        String text = textOf(editText);
-        if (text.isEmpty()) {
-            return null;
-        }
-        try {
-            int port = Integer.parseInt(text);
-            return port >= 1 && port <= 65535 ? port : null;
-        } catch (NumberFormatException ignored) {
-            return null;
-        }
     }
 }
