@@ -69,6 +69,7 @@ public final class PresetRepository {
 
     public static final String COVERAGE_MODE_AUTO = "auto";
     public static final String COVERAGE_MODE_SESSION_ONLY = "session_only";
+    public static final String COVERAGE_MODE_SESSION_ALL = "session_all";
     public static final String COVERAGE_BACKEND_NONE = "none";
     public static final String COVERAGE_BACKEND_AUTO = "auto";
     public static final String COVERAGE_BACKEND_SHIZUKU = "shizuku";
@@ -602,12 +603,19 @@ public final class PresetRepository {
     public void setCoverageMode(String mode) {
         preferences.edit().putString(
                 KEY_COVERAGE_MODE,
-                COVERAGE_MODE_SESSION_ONLY.equals(mode) ? COVERAGE_MODE_SESSION_ONLY : COVERAGE_MODE_AUTO
+                COVERAGE_MODE_SESSION_ALL.equals(mode) ? COVERAGE_MODE_SESSION_ALL
+                        : COVERAGE_MODE_SESSION_ONLY.equals(mode) ? COVERAGE_MODE_SESSION_ONLY
+                        : COVERAGE_MODE_AUTO
         ).commit();
     }
 
     public boolean isSessionOnlyCoverage() {
-        return COVERAGE_MODE_SESSION_ONLY.equals(getCoverageMode());
+        return COVERAGE_MODE_SESSION_ONLY.equals(getCoverageMode())
+                || COVERAGE_MODE_SESSION_ALL.equals(getCoverageMode());
+    }
+
+    public boolean isSessionAllCoverage() {
+        return COVERAGE_MODE_SESSION_ALL.equals(getCoverageMode());
     }
 
     public String getCoverageBackend() {

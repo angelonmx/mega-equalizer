@@ -145,6 +145,8 @@ public class TotalCoverageActivity extends BaseActivity {
             }
             if (checkedId == R.id.radioSessionOnly) {
                 confirmSessionOnlyMode();
+            } else if (checkedId == R.id.radioSessionAll) {
+                confirmSessionAllMode();
             } else {
                 repository.setCoverageMode(PresetRepository.COVERAGE_MODE_AUTO);
                 requestCoverageRefresh();
@@ -236,9 +238,14 @@ public class TotalCoverageActivity extends BaseActivity {
     private void bindValues() {
         binding = true;
         switchTotalCoverage.setChecked(repository.isTotalCoverageEnabled());
-        groupMode.check(repository.isSessionOnlyCoverage()
-                ? R.id.radioSessionOnly
-                : R.id.radioAuto);
+        String mode = repository.getCoverageMode();
+        if (PresetRepository.COVERAGE_MODE_SESSION_ALL.equals(mode)) {
+            groupMode.check(R.id.radioSessionAll);
+        } else if (PresetRepository.COVERAGE_MODE_SESSION_ONLY.equals(mode)) {
+            groupMode.check(R.id.radioSessionOnly);
+        } else {
+            groupMode.check(R.id.radioAuto);
+        }
         groupBackend.check(backendRadioId(repository.getCoverageBackend()));
         binding = false;
     }
@@ -360,6 +367,27 @@ public class TotalCoverageActivity extends BaseActivity {
                 })
                 .setPositiveButton(R.string.coverage_mode_session, (dialog, which) -> {
                     repository.setCoverageMode(PresetRepository.COVERAGE_MODE_SESSION_ONLY);
+                    requestCoverageRefresh();
+                })
+                .show();
+    }
+
+    private void confirmSessionAllMode() {
+        new MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.coverage_mode_session_all_warning_title)
+                .setMessage(R.string.coverage_mode_session_all_warning_message)
+                .setNegativeButton(R.string.cancel, (dialog, which) -> {
+                    binding = true;
+                    groupMode.check(R.id.radioAuto);
+                    binding = false;
+                })
+                .setOnCancelListener(dialog -> {
+                    binding = true;
+                    groupMode.check(R.id.radioAuto);
+                    binding = false;
+                })
+                .setPositiveButton(R.string.coverage_mode_session_all, (dialog, which) -> {
+                    repository.setCoverageMode(PresetRepository.COVERAGE_MODE_SESSION_ALL);
                     requestCoverageRefresh();
                 })
                 .show();

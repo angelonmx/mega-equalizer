@@ -155,6 +155,22 @@
                                 android:text="@string/coverage_mode_session_description"
                                 android:textAppearance="?attr/textAppearanceBodySmall"
                                 android:textColor="?attr/colorOnSurfaceVariant" />
+
+                            <com.google.android.material.radiobutton.MaterialRadioButton
+                                android:id="@+id/radioSessionAll"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="@dimen/space_s"
+                                android:minHeight="@dimen/touch_target"
+                                android:text="@string/coverage_mode_session_all" />
+
+                            <TextView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="40dp"
+                                android:text="@string/coverage_mode_session_all_description"
+                                android:textAppearance="?attr/textAppearanceBodySmall"
+                                android:textColor="?attr/colorOnSurfaceVariant" />
                         </RadioGroup>
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>

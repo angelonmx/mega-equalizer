@@ -385,10 +385,14 @@
     <string name="coverage_mode_heading">Modo de cobertura</string>
     <string name="coverage_mode_auto">Automático (recomendado)</string>
     <string name="coverage_mode_auto_description">Mantiene el efecto global para todo y añade efectos por sesión solo a llamadas y canales de voz que suelen quedar fuera de la mezcla global.</string>
-    <string name="coverage_mode_session">Solo por sesión (avanzado)</string>
-    <string name="coverage_mode_session_description">Desactiva el efecto global y aplica un ecualizador a cada sesión descubierta. Útil si el efecto global no procesa notificaciones, alarmas o accesibilidad en tu equipo.</string>
+    <string name="coverage_mode_session">Solo llamadas y canales omitidos</string>
+    <string name="coverage_mode_session_description">Desactiva el efecto global y aplica ecualizador solo a llamadas, accesibilidad (TalkBack), notificaciones y alarmas. Úsalo si el efecto global no cubre esos canales en tu equipo.</string>
+    <string name="coverage_mode_session_all">Todas las sesiones (accesibilidad, notificaciones, alarmas…)</string>
+    <string name="coverage_mode_session_all_description">Desactiva el efecto global y aplica ecualizador a cada sesión de audio detectada, incluyendo accesibilidad/TalkBack, notificaciones, alarmas y cualquier otro canal. Es el modo más completo, pero algunos sonidos muy cortos pueden quedar sin ecualizar.</string>
     <string name="coverage_mode_session_warning_title">Usar solo por sesión</string>
     <string name="coverage_mode_session_warning_message">Se desactivará el efecto global. Los sonidos sin sesión propia (por ejemplo, algunos tonos del sistema) y los sonidos muy cortos pueden quedar sin ecualizar. ¿Quieres continuar?</string>
+    <string name="coverage_mode_session_all_warning_title">Usar todas las sesiones</string>
+    <string name="coverage_mode_session_all_warning_message">Se desactivará el efecto global y se aplicará ecualizador a todas las sesiones detectadas, incluyendo accesibilidad (TalkBack), notificaciones y alarmas. Algunos sonidos muy cortos pueden quedar sin ecualizar. ¿Quieres continuar?</string>
     <string name="coverage_backend_heading">Método de acceso</string>
     <string name="coverage_backend_adb">ADB inalámbrico (sin root)</string>
     <string name="coverage_backend_adb_description">La app se empareja con la depuración inalámbrica del propio equipo y lee la lista de sesiones de audio. Es el método recomendado.</string>
