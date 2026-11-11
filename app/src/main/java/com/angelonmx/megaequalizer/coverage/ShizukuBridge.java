@@ -1,10 +1,12 @@
 package com.angelonmx.megaequalizer.coverage;
 
 import android.content.Context;
+import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.os.ParcelFileDescriptor;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import java.io.ByteArrayOutputStream;
 import java.io.FileInputStream;
@@ -18,15 +20,19 @@ import moe.shizuku.server.IShizukuService;
 import rikka.shizuku.Shizuku;
 
 /**
- * Optional Shizuku backend. It only runs {@code dumpsys audio} with the
- * permission the user grants in Shizuku; Mega Equalizer still creates every
- * audio effect itself. No root access is required when Shizuku is running.
+ * Optional Shizuku backend. It runs commands through Shizuku with the
+ * permission the user grants; Mega Equalizer still creates every audio
+ * effect itself. No root access is required when Shizuku is running.
+ *
+ * <p>Besides {@code dumpsys audio}, it can execute arbitrary shell commands
+ * through Shizuku (e.g. reflection over {@code AudioProductStrategy} to get
+ * the accessibility strategy id).</p>
  */
 public final class ShizukuBridge {
 
     public static final String PACKAGE_NAME = "moe.shizuku.privileged.api";
     private static final int MAX_OUTPUT_BYTES = 4 * 1024 * 1024;
-    private static final int TIMEOUT_SECONDS = 20;
+    private static final int TIMEOUT_SECONDS = 30;
 
     private ShizukuBridge() {
     }
@@ -86,6 +92,23 @@ public final class ShizukuBridge {
      */
     @NonNull
     public static String readDumpsysAudio() throws Exception {
+        return runShellCommand(new String[]{"/system/bin/sh", "-c", "dumpsys audio 2>&1"}, true);
+    }
+
+    /**
+     * Runs an arbitrary shell command through Shizuku and returns its stdout.
+     *
+     * @param command command and arguments, e.g. {@code {"/system/bin/sh", "-c", "..."}}
+     * @throws UnavailableException when Shizuku is not running
+     * @throws PermissionException  when the user has not authorized the app
+     */
+    @NonNull
+    public static String runShellCommand(@NonNull String[] command) throws Exception {
+        return runShellCommand(command, false);
+    }
+
+    @NonNull
+    private static String runShellCommand(@NonNull String[] command, boolean requireAudio) throws Exception {
         if (!isAvailable()) {
             throw new UnavailableException("Shizuku no está en ejecución");
         }
@@ -100,11 +123,7 @@ public final class ShizukuBridge {
 
         IRemoteProcess process;
         try {
-            process = service.newProcess(
-                    new String[]{"/system/bin/sh", "-c", "dumpsys audio 2>&1"},
-                    null,
-                    null
-            );
+            process = service.newProcess(command, null, null);
         } catch (SecurityException error) {
             throw new PermissionException("Shizuku rechazó el permiso de la app");
         }
@@ -121,7 +140,7 @@ public final class ShizukuBridge {
                 throw new IOException("Shizuku no devolvió la salida del comando");
             }
             ProcessReader reader = new ProcessReader(stdout);
-            Thread readerThread = new Thread(reader, "shizuku-audio-reader");
+            Thread readerThread = new Thread(reader, "shizuku-shell-reader");
             readerThread.setDaemon(true);
             readerThread.start();
 
@@ -144,7 +163,7 @@ public final class ShizukuBridge {
                 throw new IOException("No se pudo leer la salida de Shizuku", reader.failure);
             }
             String output = reader.output == null ? "" : reader.output;
-            if (!output.contains("AudioPlaybackConfiguration")) {
+            if (requireAudio && !output.contains("AudioPlaybackConfiguration")) {
                 String detail = output.trim();
                 if (detail.length() > 160) {
                     detail = detail.substring(0, 160);
@@ -160,6 +179,51 @@ public final class ShizukuBridge {
                 process.destroy();
             } catch (RuntimeException ignored) {
             }
+        }
+    }
+
+    /**
+     * Tries to obtain the {@code AudioProductStrategy} id for
+     * {@code USAGE_ASSISTANCE_ACCESSIBILITY} by running reflection inside the
+     * Shizuku shell process (uid 2000 / system API access).
+     *
+     * @return the strategy id, or {@code null} if it could not be determined
+     * @throws UnavailableException when Shizuku is not running
+     * @throws PermissionException  when the user has not authorized the app
+     */
+    @Nullable
+    public static Integer getAccessibilityStrategyId(@NonNull Context context) throws Exception {
+        if (!isAvailable() || !hasPermission()) {
+            return null;
+        }
+
+        String apkPath;
+        try {
+            ApplicationInfo info = context.getPackageManager()
+                    .getApplicationInfo(context.getPackageName(), 0);
+            apkPath = info.sourceDir;
+        } catch (PackageManager.NameNotFoundException error) {
+            return null;
+        }
+
+        String[] command = {
+                "/system/bin/app_process",
+                "/system/bin",
+                "--nice-name=audio",
+                "-cp", apkPath,
+                "com.angelonmx.megaequalizer.audio.AudioStrategyHelper"
+        };
+
+        String output = runShellCommand(command, false);
+        if (output == null || output.isEmpty()) {
+            return null;
+        }
+        output = output.trim();
+        try {
+            int id = Integer.parseInt(output);
+            return id >= 0 ? id : null;
+        } catch (NumberFormatException ignored) {
+            return null;
         }
     }
 

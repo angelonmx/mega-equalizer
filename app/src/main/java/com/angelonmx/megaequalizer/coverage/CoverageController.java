@@ -6,9 +6,11 @@ import android.os.Process;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import com.angelonmx.megaequalizer.audio.AudioRouteManager;
 import com.angelonmx.megaequalizer.audio.EqualizerEngine;
+import com.angelonmx.megaequalizer.coverage.ShizukuBridge;
 import com.angelonmx.megaequalizer.data.AudioRoute;
 import com.angelonmx.megaequalizer.data.Preset;
 import com.angelonmx.megaequalizer.data.PresetRepository;
@@ -53,6 +55,8 @@ public final class CoverageController {
     private String lastDetail = "";
     private String lastSummary = "";
     private long lastStatusAt;
+    @Nullable
+    private Integer accessibilityStrategyId;
 
     public CoverageController(
             @NonNull Context context,
@@ -73,6 +77,17 @@ public final class CoverageController {
         thread = new Thread(this::loop, "coverage-poller");
         thread.setDaemon(true);
         thread.start();
+        // Obtén proactivamente el id de estrategia de accesibilidad vía Shizuku
+        // para poder aplicar el ecualizador directamente a TalkBack sin esperar
+        // a que se detecte su sesión de audio.
+        try {
+            accessibilityStrategyId = ShizukuBridge.getAccessibilityStrategyId(context);
+        } catch (Throwable ignored) {
+            accessibilityStrategyId = null;
+        }
+        if (accessibilityStrategyId != null) {
+            Log.d(TAG, "Accessibility strategy id: " + accessibilityStrategyId);
+        }
     }
 
     public void stop() {
@@ -218,6 +233,21 @@ public final class CoverageController {
             }
             engine.applyToSession(session.sessionId, preset, route);
             desiredIds.add(session.sessionId);
+        }
+
+        // Aplica el ecualizador directamente a la estrategia de accesibilidad
+        // (TalkBack) obtenida vía Shizuku, así no depende de que se detecte su
+        // sesión de audio y no se "escapa" a mitad de la lectura.
+        if (accessibilityStrategyId != null && accessibilityStrategyId >= 0) {
+            Preset preset = repository.resolvePresetForPackage(
+                    "com.google.android.marvin.talkback", route);
+            if (preset == null) {
+                preset = repository.resolvePresetForPackage("", route);
+            }
+            if (preset != null) {
+                engine.applyToSession(accessibilityStrategyId, preset, route);
+                desiredIds.add(accessibilityStrategyId);
+            }
         }
 
         for (Integer sessionId : new ArrayList<>(appliedSessions)) {
