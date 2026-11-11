@@ -142,6 +142,51 @@
                             style="@style/Widget.MegaEqualizer.SectionHeading"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
+                            android:text="@string/settings_coverage_heading" />
+
+                        <TextView
+                            android:id="@+id/textCoverageSummary"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/space_s"
+                            android:accessibilityLiveRegion="polite"
+                            android:textAppearance="?attr/textAppearanceBodyLarge"
+                            android:textColor="?attr/colorOnSurface" />
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/space_s"
+                            android:text="@string/settings_coverage_explanation"
+                            android:textAppearance="?attr/textAppearanceBodySmall"
+                            android:textColor="?attr/colorOnSurfaceVariant" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/buttonCoverage"
+                            style="@style/Widget.MegaEqualizer.Button.Secondary"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/space_m"
+                            android:text="@string/settings_coverage_button" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <com.google.android.material.card.MaterialCardView
+                    style="@style/Widget.MegaEqualizer.Card"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/space_m">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="@dimen/card_padding">
+
+                        <TextView
+                            style="@style/Widget.MegaEqualizer.SectionHeading"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
                             android:text="@string/settings_updates_heading" />
 
                         <com.google.android.material.materialswitch.MaterialSwitch

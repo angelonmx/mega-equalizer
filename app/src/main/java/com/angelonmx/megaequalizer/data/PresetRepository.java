@@ -56,6 +56,22 @@ public final class PresetRepository {
     public static final String KEY_PENDING_WHATS_NEW_CODE = "pending_whats_new_code";
     public static final String KEY_PENDING_WHATS_NEW_NAME = "pending_whats_new_name";
     public static final String KEY_PENDING_WHATS_NEW_NOTES = "pending_whats_new_notes";
+    public static final String KEY_TOTAL_COVERAGE = "total_coverage_enabled";
+    public static final String KEY_COVERAGE_MODE = "coverage_mode";
+    public static final String KEY_COVERAGE_BACKEND = "coverage_backend";
+    public static final String KEY_ADB_CONNECT_PORT = "adb_connect_port";
+    public static final String KEY_ADB_PAIRING_PORT = "adb_pairing_port";
+    public static final String KEY_ADB_PAIRED = "adb_paired";
+    public static final String KEY_COVERAGE_STATUS = "coverage_status";
+    public static final String KEY_COVERAGE_DETAIL = "coverage_detail";
+    public static final String KEY_COVERAGE_SESSION_SUMMARY = "coverage_session_summary";
+    public static final String KEY_COVERAGE_LAST_UPDATE = "coverage_last_update";
+
+    public static final String COVERAGE_MODE_AUTO = "auto";
+    public static final String COVERAGE_MODE_SESSION_ONLY = "session_only";
+    public static final String COVERAGE_BACKEND_NONE = "none";
+    public static final String COVERAGE_BACKEND_ADB = "adb";
+    public static final String COVERAGE_BACKEND_ROOT = "root";
 
     public static final String APP_NONE = "__none__";
     public static final String THEME_SYSTEM = "system";
@@ -565,6 +581,102 @@ public final class PresetRepository {
 
     public void setPerAppEnabled(boolean enabled) {
         preferences.edit().putBoolean(KEY_PER_APP_ENABLED, enabled).commit();
+    }
+
+    // ------------------------------------------------------- total coverage
+
+    public boolean isTotalCoverageEnabled() {
+        return preferences.getBoolean(KEY_TOTAL_COVERAGE, false);
+    }
+
+    public void setTotalCoverageEnabled(boolean enabled) {
+        preferences.edit().putBoolean(KEY_TOTAL_COVERAGE, enabled).commit();
+    }
+
+    public String getCoverageMode() {
+        return preferences.getString(KEY_COVERAGE_MODE, COVERAGE_MODE_AUTO);
+    }
+
+    public void setCoverageMode(String mode) {
+        preferences.edit().putString(
+                KEY_COVERAGE_MODE,
+                COVERAGE_MODE_SESSION_ONLY.equals(mode) ? COVERAGE_MODE_SESSION_ONLY : COVERAGE_MODE_AUTO
+        ).commit();
+    }
+
+    public boolean isSessionOnlyCoverage() {
+        return COVERAGE_MODE_SESSION_ONLY.equals(getCoverageMode());
+    }
+
+    public String getCoverageBackend() {
+        return preferences.getString(KEY_COVERAGE_BACKEND, COVERAGE_BACKEND_NONE);
+    }
+
+    public void setCoverageBackend(String backend) {
+        String value = COVERAGE_BACKEND_ROOT.equals(backend)
+                ? COVERAGE_BACKEND_ROOT
+                : COVERAGE_BACKEND_ADB.equals(backend)
+                ? COVERAGE_BACKEND_ADB
+                : COVERAGE_BACKEND_NONE;
+        preferences.edit().putString(KEY_COVERAGE_BACKEND, value).commit();
+    }
+
+    public int getAdbConnectPort() {
+        return preferences.getInt(KEY_ADB_CONNECT_PORT, 0);
+    }
+
+    public void setAdbConnectPort(int port) {
+        preferences.edit().putInt(KEY_ADB_CONNECT_PORT, port <= 0 ? 0 : port).commit();
+    }
+
+    public int getAdbPairingPort() {
+        return preferences.getInt(KEY_ADB_PAIRING_PORT, 0);
+    }
+
+    public void setAdbPairingPort(int port) {
+        preferences.edit().putInt(KEY_ADB_PAIRING_PORT, port <= 0 ? 0 : port).commit();
+    }
+
+    public boolean isAdbPaired() {
+        return preferences.getBoolean(KEY_ADB_PAIRED, false);
+    }
+
+    public void setAdbPaired(boolean paired) {
+        preferences.edit().putBoolean(KEY_ADB_PAIRED, paired).commit();
+    }
+
+    public String getCoverageStatus() {
+        return preferences.getString(KEY_COVERAGE_STATUS, "");
+    }
+
+    public String getCoverageDetail() {
+        return preferences.getString(KEY_COVERAGE_DETAIL, "");
+    }
+
+    public String getCoverageSessionSummary() {
+        return preferences.getString(KEY_COVERAGE_SESSION_SUMMARY, "");
+    }
+
+    public long getCoverageLastUpdate() {
+        return preferences.getLong(KEY_COVERAGE_LAST_UPDATE, 0L);
+    }
+
+    public void updateCoverageStatus(String status, String detail, String sessionSummary) {
+        preferences.edit()
+                .putString(KEY_COVERAGE_STATUS, status == null ? "" : status)
+                .putString(KEY_COVERAGE_DETAIL, detail == null ? "" : detail)
+                .putString(KEY_COVERAGE_SESSION_SUMMARY, sessionSummary == null ? "" : sessionSummary)
+                .putLong(KEY_COVERAGE_LAST_UPDATE, System.currentTimeMillis())
+                .apply();
+    }
+
+    public void clearCoverageStatus() {
+        preferences.edit()
+                .remove(KEY_COVERAGE_STATUS)
+                .remove(KEY_COVERAGE_DETAIL)
+                .remove(KEY_COVERAGE_SESSION_SUMMARY)
+                .remove(KEY_COVERAGE_LAST_UPDATE)
+                .apply();
     }
 
     public String getThemeMode() {

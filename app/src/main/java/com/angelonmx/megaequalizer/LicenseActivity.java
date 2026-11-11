@@ -9,10 +9,11 @@ import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 
-/** Shows the complete GNU GPL v3 text bundled in the APK assets. */
+/** Shows the complete GNU GPL v3 text and the bundled third-party notices. */
 public class LicenseActivity extends BaseActivity {
 
     private static final String LICENSE_ASSET = "gpl-3.0.txt";
+    private static final String NOTICES_ASSET = "third-party-notices.txt";
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -21,11 +22,21 @@ public class LicenseActivity extends BaseActivity {
         setupBackToolbar();
 
         TextView textLicense = findViewById(R.id.textLicense);
-        textLicense.setText(readLicense());
+        textLicense.setText(readLicenses());
     }
 
-    private String readLicense() {
-        try (InputStream input = getAssets().open(LICENSE_ASSET);
+    private String readLicenses() {
+        String license = readAsset(LICENSE_ASSET);
+        if (license == null) {
+            license = getString(R.string.license_text);
+        }
+        String notices = readAsset(NOTICES_ASSET);
+        return notices == null ? license : license + "\n\n\n" + notices;
+    }
+
+    @Nullable
+    private String readAsset(String name) {
+        try (InputStream input = getAssets().open(name);
              ByteArrayOutputStream output = new ByteArrayOutputStream()) {
             byte[] buffer = new byte[8192];
             int read;
@@ -34,7 +45,7 @@ public class LicenseActivity extends BaseActivity {
             }
             return new String(output.toByteArray(), StandardCharsets.UTF_8);
         } catch (Exception error) {
-            return getString(R.string.license_text);
+            return null;
         }
     }
 }

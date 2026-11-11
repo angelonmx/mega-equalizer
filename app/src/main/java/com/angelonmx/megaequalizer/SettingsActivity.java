@@ -36,6 +36,7 @@ public class SettingsActivity extends BaseActivity {
     private TextView textLastCheck;
     private TextView textUpdateStatus;
     private TextView textThemeSummary;
+    private TextView textCoverageSummary;
     private MaterialSwitch switchAutoUpdate;
     private MaterialButton buttonNotifications;
     private MaterialButton buttonInstallReady;
@@ -76,6 +77,7 @@ public class SettingsActivity extends BaseActivity {
         textLastCheck = findViewById(R.id.textLastCheck);
         textUpdateStatus = findViewById(R.id.textUpdateStatus);
         textThemeSummary = findViewById(R.id.textThemeSummary);
+        textCoverageSummary = findViewById(R.id.textCoverageSummary);
         switchAutoUpdate = findViewById(R.id.switchAutoUpdate);
         buttonNotifications = findViewById(R.id.buttonNotifications);
         buttonInstallReady = findViewById(R.id.buttonInstallReady);
@@ -92,6 +94,8 @@ public class SettingsActivity extends BaseActivity {
         buttonInstallReady.setOnClickListener(view ->
                 UpdateChecker.promptReadyUpdate(this));
         findViewById(R.id.buttonTheme).setOnClickListener(view -> showThemeDialog());
+        findViewById(R.id.buttonCoverage).setOnClickListener(view ->
+                startActivity(new Intent(this, TotalCoverageActivity.class)));
         findViewById(R.id.buttonBattery).setOnClickListener(view ->
                 AccessibilityUtils.openBatterySettings(this));
         findViewById(R.id.buttonStopService).setOnClickListener(view -> stopService());
@@ -178,6 +182,9 @@ public class SettingsActivity extends BaseActivity {
                         AccessibilityUtils.formatDateTime(this, lastCheck)
                 ));
         textThemeSummary.setText(themeLabel(repository.getThemeMode()));
+        textCoverageSummary.setText(repository.isTotalCoverageEnabled()
+                ? R.string.settings_coverage_summary_on
+                : R.string.settings_coverage_summary_off);
 
         boolean ready = UpdateChecker.hasReadyUpdate(this);
         buttonInstallReady.setVisibility(ready ? View.VISIBLE : View.GONE);

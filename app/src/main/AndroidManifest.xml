@@ -68,6 +68,12 @@
             android:windowSoftInputMode="adjustResize" />
 
         <activity
+            android:name=".TotalCoverageActivity"
+            android:exported="false"
+            android:label="@string/coverage_title"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
             android:name=".SettingsActivity"
             android:exported="false"
             android:label="@string/settings_title" />

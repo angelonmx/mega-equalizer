@@ -19,6 +19,7 @@ Mega Equalizer aplica ecualizaciones por dispositivo y, de forma opcional, por a
 - **Persistencia por dispositivo**: cada asignación guarda el nombre, el tipo, la dirección y los detalles de la salida. El preset se vuelve a aplicar cuando ese dispositivo regresa, aunque esté desconectado durante un tiempo. La pantalla **Dispositivos recordados** permite revisarlos y reasignarlos.
 - **Prioridad clara**: salida concreta → categoría → «Cualquier dispositivo» → sin efecto.
 - **Cobertura global**: el motor principal procesa la mezcla completa de audio, incluidos los canales de accesibilidad y la voz de TalkBack, cuando el fabricante permite efectos globales.
+- **Cobertura total (opcional)**: descubre las sesiones de audio activas mediante ADB inalámbrico local o root y añade un ecualizador propio a llamadas, alarmas, notificaciones y canales que el efecto global deja fuera. Dos modos: **Automático** (global + sesiones de llamada y voz) y **Solo por sesión** (avanzado).
 - **Perfiles por aplicación (opcionales y experimentales)**: usan el servicio de accesibilidad para detectar el paquete en primer plano y mantener activo el motor global.
 - **Servicio persistente**: bucle de salud cada 20 segundos, vigilancia desde accesibilidad cada 15 segundos, recuperación tras reinicios y actualizaciones, y reinicio automático si Android lo detiene.
 - **Servicio en primer plano**: muestra el preset activo en una notificación y permite desactivar la ecualización sin abrir la app.
@@ -29,6 +30,7 @@ Mega Equalizer aplica ecualizaciones por dispositivo y, de forma opcional, por a
 ## Requisitos
 
 - Android 8.0 (API 26) o superior.
+- La **Cobertura total** por ADB necesita Android 11 o superior para el emparejamiento inalámbrico. En Android 8–10 se puede usar root o un puerto 5555 ya autorizado.
 - Para instalar actualizaciones descargadas por la app, Android pedirá permitir la instalación de apps desconocidas para Mega Equalizer. La instalación siempre la confirma el usuario; no se puede instalar en silencio sin ser propietario del dispositivo.
 
 ## Instalación
@@ -37,9 +39,9 @@ Descarga el APK desde la página de [Releases](https://github.com/angelonmx/mega
 
 | Archivo | Arquitectura | Cuándo usarlo |
 | --- | --- | --- |
-| `mega-equalizer-1.2-arm64-v8a.apk` | ARM de 64 bits | La mayoría de teléfonos actuales |
-| `mega-equalizer-1.2-armeabi-v7a.apk` | ARM de 32 bits | Teléfonos antiguos o de gama baja |
-| `mega-equalizer-1.2-universal.apk` | ARM64, ARMv7 y x86_64 | Emuladores o si no estás seguro de tu arquitectura |
+| `mega-equalizer-1.3-arm64-v8a.apk` | ARM de 64 bits | La mayoría de teléfonos actuales |
+| `mega-equalizer-1.3-armeabi-v7a.apk` | ARM de 32 bits | Teléfonos antiguos o de gama baja |
+| `mega-equalizer-1.3-universal.apk` | ARM64, ARMv7 y x86_64 | Emuladores o si no estás seguro de tu arquitectura |
 
 Puedes consultar la arquitectura de tu teléfono en **Ajustes → Acerca del teléfono → Información del procesador**, o instalar la versión universal.
 
@@ -70,7 +72,7 @@ Todos los APK publicados se firman con la misma clave. Huella SHA-256 del certif
 También puedes comprobarlo con Android SDK Build Tools:
 
 ```bash
-apksigner verify --print-certs mega-equalizer-1.2-arm64-v8a.apk
+apksigner verify --print-certs mega-equalizer-1.3-arm64-v8a.apk
 ```
 
 ## Primeros pasos
@@ -117,6 +119,39 @@ Mega Equalizer intenta, en este orden:
 
 Los efectos globales se aplican a la mezcla completa del dispositivo: audio multimedia, notificaciones, llamadas y el canal de accesibilidad que usa TalkBack. Dependen del fabricante: algunos teléfonos limitan o bloquean los efectos sobre la mezcla global; en esos casos la app lo indica y puede seguir funcionando con reproductores compatibles. El ecualizador no puede procesar audio de apps que no exponen una sesión de audio al sistema.
 
+### Cobertura total
+
+La cobertura total es opcional. Sirve para equipos en los que el efecto global no procesa llamadas, alarmas, notificaciones o canales del fabricante. Mega Equalizer consulta las sesiones de audio activas y crea un efecto propio para cada una, sin grabar el audio ni analizar su contenido.
+
+- **Automático (recomendado)**: mantiene el efecto global para toda la mezcla y añade efectos por sesión solo a llamadas y canales de voz.
+- **Solo por sesión (avanzado)**: libera el efecto global y aplica un ecualizador a cada sesión descubierta. Los sonidos sin sesión propia y los sonidos muy cortos pueden quedar sin cubrir.
+
+La app consulta las sesiones cada 5 segundos mientras el servicio está encendido, reutiliza los efectos de las sesiones conocidas y los libera cuando la sesión termina.
+
+#### Método ADB inalámbrico (sin root)
+
+1. Activa **Opciones de desarrollador → Depuración inalámbrica**.
+2. Toca **Emparejar dispositivo con código**.
+3. En Mega Equalizer, abre **Ajustes → Cobertura total**, elige **ADB inalámbrico** y escribe el puerto de emparejamiento y el código de 6 dígitos.
+4. Escribe el puerto de conexión que aparece en la pantalla principal de Depuración inalámbrica.
+5. Pulsa **Emparejar y conectar**.
+
+Mega Equalizer conecta solo con `127.0.0.1`, la interfaz local del propio equipo; no acepta conexiones de la red ni las abre. La identidad ADB (clave RSA y certificado) se genera en el dispositivo y se guarda en el almacenamiento privado de la app. Una sola conexión persistente ejecuta `dumpsys audio` en un bucle y entrega las instantáneas a la app; si la depuración se reinicia o la conexión falla, la app vuelve a intentarlo.
+
+El puerto de conexión cambia si reinicias el equipo o desactivas la depuración inalámbrica. En ese caso vuelve a escribir el puerto actual y pulsa **Probar conexión**.
+
+ADB otorga acceso de nivel shell al dispositivo. Actívalo solo mientras uses esta función y desactiva la depuración inalámbrica cuando no la necesites. Para más detalles, consulta [PRIVACY.md](PRIVACY.md).
+
+#### Método Root (avanzado)
+
+En equipos rooteados, el método **Root (avanzado)** ejecuta `su -c dumpsys audio` para obtener la lista de sesiones. No instala nada ni modifica archivos del sistema. El superusuario puede pedir permiso la primera vez.
+
+#### Límites
+
+- Ninguna app normal puede autoconcederse `MODIFY_AUDIO_ROUTING`; por eso la cobertura total necesita ADB o root.
+- Algunos fabricantes limitan la creación de efectos por sesión o los aplican después de la ruta de audio. La app intenta `DynamicsProcessing` y recurre al `Equalizer` del sistema cuando no está disponible.
+- Los sonidos sin sesión de audio propia y los sonidos muy cortos pueden quedar fuera del modo Solo por sesión.
+
 ### Permanencia del servicio
 
 Mega Equalizer intenta que el motor nunca se quede apagado mientras la ecualización esté activa:
@@ -131,7 +166,7 @@ Los fabricantes con gestores de batería muy agresivos pueden seguir limitando l
 
 ## Privacidad
 
-Mega Equalizer no recopila datos, no muestra anuncios y no requiere una cuenta. Todo se guarda localmente. La única conexión de red es la comprobación de actualizaciones al abrir la app, que consulta GitHub Releases. Más detalles en [PRIVACY.md](PRIVACY.md).
+Mega Equalizer no recopila datos, no muestra anuncios y no requiere una cuenta. Todo se guarda localmente. La única conexión a Internet es la comprobación de actualizaciones al abrir la app, que consulta GitHub Releases. La cobertura total usa una conexión local con la depuración inalámbrica del propio dispositivo (`127.0.0.1`) o el acceso root, nunca servidores externos. Más detalles en [PRIVACY.md](PRIVACY.md).
 
 ## Compilar
 
@@ -196,8 +231,8 @@ app/build/outputs/apk/release/app-universal-release.apk
 3. Crea un tag y súbelo:
 
 ```bash
-git tag v1.2
-git push origin v1.2
+git tag v1.3
+git push origin v1.3
 ```
 
 El workflow `.github/workflows/release.yml` compila y firma los tres APK, genera `version.json` con sus SHA-256 y publica el release en GitHub. La app consulta:
@@ -220,19 +255,22 @@ El keystore y las contraseñas nunca se guardan en el repositorio.
 ```text
 app/src/main/java/com/angelonmx/megaequalizer/
 ├── audio/          Detección de rutas y motor de efectos
+├── coverage/       Descubrimiento de sesiones por ADB o root y cobertura total
 ├── data/           Presets, asignaciones, perfiles y estado
 ├── service/        Servicio en primer plano
 ├── accessibility/  Detección del paquete en primer plano y vigilancia del motor
 ├── update/         Comprobación, descarga y verificación de APK
 ├── ui/             Adaptadores y controles accesibles
 └── util/           Accesibilidad, hash y ABI
-app/src/main/assets/ Texto completo de la licencia GPL v3 y novedades empaquetadas
+app/src/main/assets/ Texto completo de la licencia GPL v3, avisos de terceros y novedades empaquetadas
 scripts/             Metadatos del release y bibliotecas nativas
 ```
 
 ## Licencia
 
 Mega Equalizer se distribuye bajo la **GNU General Public License, versión 3 o posterior** (GPLv3). Consulta [LICENSE](LICENSE).
+
+Incluye bibliotecas de terceros con sus propias licencias; consulta [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) o la pantalla **Ajustes → Licencias** dentro de la app.
 
 ## Aviso
 

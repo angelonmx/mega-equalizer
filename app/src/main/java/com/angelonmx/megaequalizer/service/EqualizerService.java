@@ -30,11 +30,13 @@ import com.angelonmx.megaequalizer.MainActivity;
 import com.angelonmx.megaequalizer.R;
 import com.angelonmx.megaequalizer.audio.AudioRouteManager;
 import com.angelonmx.megaequalizer.audio.EqualizerEngine;
+import com.angelonmx.megaequalizer.coverage.CoverageController;
 import com.angelonmx.megaequalizer.data.AudioRoute;
 import com.angelonmx.megaequalizer.data.Preset;
 import com.angelonmx.megaequalizer.data.PresetRepository;
 import com.angelonmx.megaequalizer.util.AccessibilityUtils;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -90,6 +92,7 @@ public class EqualizerService extends Service {
 
     private PresetRepository repository;
     private EqualizerEngine engine;
+    private CoverageController coverageController;
     private AudioManager audioManager;
     private boolean foregroundStarted;
     private boolean destroyed;
@@ -123,7 +126,15 @@ public class EqualizerService extends Service {
                         || key.equals(PresetRepository.KEY_ASSIGNMENTS)
                         || key.equals(PresetRepository.KEY_APP_OVERRIDES)
                         || key.equals(PresetRepository.KEY_PER_APP_ENABLED)
-                        || key.equals(PresetRepository.KEY_FOREGROUND_PACKAGE)) {
+                        || key.equals(PresetRepository.KEY_FOREGROUND_PACKAGE)
+                        || key.equals(PresetRepository.KEY_TOTAL_COVERAGE)
+                        || key.equals(PresetRepository.KEY_COVERAGE_MODE)
+                        || key.equals(PresetRepository.KEY_COVERAGE_BACKEND)
+                        || key.equals(PresetRepository.KEY_ADB_CONNECT_PORT)
+                        || key.equals(PresetRepository.KEY_ADB_PAIRED)) {
+                    if (coverageController != null) {
+                        coverageController.requestRefresh();
+                    }
                     handler.removeCallbacks(evaluateRunnable);
                     handler.postDelayed(evaluateRunnable, 180L);
                 }
@@ -183,6 +194,8 @@ public class EqualizerService extends Service {
         repository = PresetRepository.get(this);
         engine = new EqualizerEngine(this);
         engine.setOnNeedsReapplyListener(this::scheduleEvaluate);
+        coverageController = new CoverageController(this, repository, engine);
+        coverageController.start();
         audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
         createNotificationChannel();
         if (audioManager != null) {
@@ -256,6 +269,10 @@ public class EqualizerService extends Service {
         if (repository != null) {
             repository.getPreferences().unregisterOnSharedPreferenceChangeListener(preferencesListener);
             repository.updateServiceStatus(false, null, null, "", "");
+        }
+        if (coverageController != null) {
+            coverageController.stop();
+            coverageController = null;
         }
         if (engine != null) {
             engine.releaseAll();
@@ -336,11 +353,15 @@ public class EqualizerService extends Service {
         String foregroundPackage = perApp ? repository.getForegroundPackage() : "";
         Preset preset = repository.resolvePreset(route, foregroundPackage, perApp);
 
+        engine.setGlobalAllowed(!repository.isSessionOnlyCoverage());
         engine.applyPreset(preset, route);
         String engineLabel = preset == null ? "" : engine.getEngineLabel();
         String error = preset == null ? "" : engine.getLastError();
 
         updateSessionEffects(route);
+        if (coverageController != null && repository.isTotalCoverageEnabled()) {
+            coverageController.requestRefresh();
+        }
 
         repository.updateServiceStatus(true, preset, route, engineLabel, error);
         Notification notification = buildNotification(null);
@@ -358,7 +379,12 @@ public class EqualizerService extends Service {
 
     private void updateSessionEffects(AudioRoute route) {
         if (engine.isGlobalActive()) {
-            engine.releaseAllSessions();
+            // Only release the sessions reported by media players. Session
+            // effects owned by total coverage (for example, voice calls) must
+            // survive while the global effect is active.
+            for (Integer sessionId : new ArrayList<>(sessionPackages.keySet())) {
+                engine.releaseSession(sessionId);
+            }
             return;
         }
         if (sessionPackages.isEmpty()) {
@@ -385,6 +411,10 @@ public class EqualizerService extends Service {
 
     private void shutdown() {
         handler.removeCallbacks(healthRunnable);
+        if (coverageController != null) {
+            coverageController.stop();
+            coverageController = null;
+        }
         if (engine != null) {
             engine.releaseAll();
         }

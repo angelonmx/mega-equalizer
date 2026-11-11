@@ -299,7 +299,7 @@
     <string name="settings_about_heading">Acerca de</string>
     <string name="about_version_format">Mega Equalizer %1$s, código %2$d</string>
     <string name="about_repository">Ver el proyecto en GitHub</string>
-    <string name="about_license">Licencia GPL v3</string>
+    <string name="about_license">Licencias y GPL v3</string>
     <string name="about_privacy">Privacidad</string>
     <string name="about_privacy_text">Mega Equalizer no recopila datos personales. La conexión a Internet se usa únicamente para consultar y descargar actualizaciones desde GitHub. Los presets, las asignaciones y los nombres de las aplicaciones se guardan solo en tu dispositivo. El servicio de accesibilidad solo recibe el nombre del paquete de la ventana activa y mantiene activo el motor global; no lee el contenido de la pantalla.</string>
     <string name="about_audio_note">Mega Equalizer usa los efectos de audio del sistema Android. El motor global procesa la mezcla completa, incluidos los canales de accesibilidad y TalkBack, cuando el fabricante permite efectos globales. Si el dispositivo los bloquea, la app puede aplicar el ecualizador solo a reproductores que permiten sesiones de efectos de audio.</string>
@@ -374,6 +374,61 @@
     <!-- What's new -->
     <string name="whats_new_title">Novedades de Mega Equalizer %1$s</string>
     <string name="whats_new_close">Entendido</string>
+
+    <!-- Total coverage -->
+    <string name="coverage_title">Cobertura total</string>
+    <string name="coverage_intro_heading">Ecualización para todos los canales</string>
+    <string name="coverage_intro_text">El efecto global de Android suele cubrir multimedia, notificaciones y accesibilidad. Algunos equipos lo omiten en llamadas, alarmas o canales del fabricante. La cobertura total descubre las sesiones de audio activas y les añade un ecualizador propio, sin grabar el audio ni enviar datos a Internet.</string>
+    <string name="coverage_requirements_text">Para descubrir sesiones sin root, Mega Equalizer se conecta a la depuración inalámbrica de este mismo equipo. Necesitas Android 11 o superior. El emparejamiento se hace dentro de la app y la identidad ADB se guarda solo en el almacenamiento privado de Mega Equalizer.</string>
+    <string name="coverage_enable">Activar cobertura total</string>
+    <string name="coverage_enable_description">Si está desactivada, solo se aplica el efecto global. Si la activas, Mega Equalizer consulta las sesiones activas cada pocos segundos mientras el servicio está encendido.</string>
+    <string name="coverage_mode_heading">Modo de cobertura</string>
+    <string name="coverage_mode_auto">Automático (recomendado)</string>
+    <string name="coverage_mode_auto_description">Mantiene el efecto global para todo y añade efectos por sesión solo a llamadas y canales de voz que suelen quedar fuera de la mezcla global.</string>
+    <string name="coverage_mode_session">Solo por sesión (avanzado)</string>
+    <string name="coverage_mode_session_description">Desactiva el efecto global y aplica un ecualizador a cada sesión descubierta. Útil si el efecto global no procesa notificaciones, alarmas o accesibilidad en tu equipo.</string>
+    <string name="coverage_mode_session_warning_title">Usar solo por sesión</string>
+    <string name="coverage_mode_session_warning_message">Se desactivará el efecto global. Los sonidos sin sesión propia (por ejemplo, algunos tonos del sistema) y los sonidos muy cortos pueden quedar sin ecualizar. ¿Quieres continuar?</string>
+    <string name="coverage_backend_heading">Método de acceso</string>
+    <string name="coverage_backend_adb">ADB inalámbrico (sin root)</string>
+    <string name="coverage_backend_adb_description">La app se empareja con la depuración inalámbrica del propio equipo y lee la lista de sesiones de audio. Es el método recomendado.</string>
+    <string name="coverage_backend_root">Root (avanzado)</string>
+    <string name="coverage_backend_root_description">Usa el superusuario para ejecutar «dumpsys audio». Solo funciona en equipos rooteados y puede mostrar una solicitud de permiso.</string>
+    <string name="coverage_adb_heading">Conexión por ADB</string>
+    <string name="coverage_adb_steps">1. Activa Opciones de desarrollador y Depuración inalámbrica.\n2. Toca «Emparejar dispositivo con código».\n3. Escribe aquí el puerto y el código de emparejamiento.\n4. Escribe el puerto de conexión que aparece en la pantalla principal de Depuración inalámbrica.\n5. Pulsa Emparejar y conectar. El puerto de conexión cambia si reinicias el equipo o la depuración.</string>
+    <string name="coverage_connect_port_hint">Puerto de conexión</string>
+    <string name="coverage_connect_port_helper">Suele ser 5555, pero Android puede mostrar otro distinto.</string>
+    <string name="coverage_pairing_port_hint">Puerto de emparejamiento</string>
+    <string name="coverage_pairing_code_hint">Código de emparejamiento (6 dígitos)</string>
+    <string name="coverage_pair_button">Emparejar y conectar</string>
+    <string name="coverage_test_button">Probar conexión</string>
+    <string name="coverage_root_heading">Acceso root</string>
+    <string name="coverage_root_text">Si el equipo tiene root, Mega Equalizer puede leer las sesiones con «su -c dumpsys audio». No se instala nada y no se modifican archivos del sistema. El superusuario puede pedir permiso la primera vez.</string>
+    <string name="coverage_test_root_button">Probar acceso root</string>
+    <string name="coverage_status_heading">Estado de la cobertura</string>
+    <string name="coverage_refresh_button">Actualizar ahora</string>
+    <string name="coverage_status_disabled">Cobertura total desactivada</string>
+    <string name="coverage_status_waiting">Esperando datos de cobertura…</string>
+    <string name="coverage_config_missing_title">Falta configurar ADB</string>
+    <string name="coverage_config_missing_message">Escribe el puerto de conexión y empareja la app con la depuración inalámbrica. Si prefieres no usar ADB, elige el método Root.</string>
+    <string name="coverage_enabled_announcement">Cobertura total activada.</string>
+    <string name="coverage_disabled_announcement">Cobertura total desactivada.</string>
+    <string name="coverage_pairing_in_progress">Emparejando y comprobando la conexión…</string>
+    <string name="coverage_test_in_progress">Comprobando la conexión…</string>
+    <string name="coverage_root_test_in_progress">Comprobando el acceso root…</string>
+    <string name="coverage_port_invalid">Escribe un puerto válido entre 1 y 65535.</string>
+    <string name="coverage_pairing_code_invalid">Escribe el código de emparejamiento de 6 dígitos.</string>
+    <string name="coverage_pairing_required">Para usar ADB, empareja la app con el puerto y el código que muestra Android.</string>
+    <string name="coverage_port_saved_format">Puerto de conexión guardado: %1$d. Pulsa Probar conexión para comprobarlo.</string>
+    <string name="coverage_root_unavailable">Root no está disponible o fue rechazado: %1$s</string>
+    <string name="coverage_root_ok">Root disponible · %1$d sesiones activas</string>
+    <string name="coverage_no_sessions">No hay sesiones activas.</string>
+    <string name="coverage_adb_android_requirement">El emparejamiento inalámbrico necesita Android 11 o superior. En versiones anteriores puedes usar root o el puerto 5555 si ya está autorizado.</string>
+    <string name="settings_coverage_heading">Cobertura total</string>
+    <string name="settings_coverage_summary_off">Desactivada: solo se aplica el efecto global.</string>
+    <string name="settings_coverage_summary_on">Activa: se añaden efectos por sesión para llamadas y canales omitidos.</string>
+    <string name="settings_coverage_explanation">Amplía la ecualización a llamadas, notificaciones, alarmas y accesibilidad en equipos donde el efecto global no llega a todos los canales.</string>
+    <string name="settings_coverage_button">Configurar cobertura total</string>
 
     <!-- Accessibility service -->
     <string name="accessibility_service_label">Mega Equalizer: audio y perfiles</string>

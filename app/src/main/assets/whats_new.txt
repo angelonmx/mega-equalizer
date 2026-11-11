@@ -1,11 +1,11 @@
-Novedades de Mega Equalizer 1.2
+Novedades de Mega Equalizer 1.3
 
-• Presets por salida concreta: el preset se guarda con el nombre, el tipo, la dirección y los detalles de cada dispositivo, y se vuelve a aplicar cuando esa salida regresa.
-• Nueva sección Dispositivos recordados para ver y reasignar salidas que ya tienen un preset guardado.
-• Prioridad: salida concreta, luego categoría, luego «Cualquier dispositivo». Sin preset para la salida actual no se aplica ningún efecto.
-• El motor global cubre multimedia, notificaciones, llamadas y el canal de accesibilidad de TalkBack cuando el fabricante lo permite.
-• El servicio se mantiene activo y se recupera tras reinicios, actualizaciones o cierres agresivos.
-• Actualizaciones accesibles: el diálogo muestra el registro de cambios y las arquitecturas del dispositivo, instalada y de descarga.
-• TalkBack anuncia el progreso de la descarga, que también aparece en una notificación con opción de cancelar.
-• Al terminar la descarga se muestra el diálogo para abrir el instalador de Android.
-• Este registro de cambios se muestra una sola vez al abrir la versión recién instalada.
+• Cobertura total: descubre las sesiones de audio activas y les añade un ecualizador propio para llegar a llamadas, alarmas, notificaciones y canales que el efecto global del fabricante deja fuera.
+• Modo Automático: mantiene el efecto global para toda la mezcla y añade efectos por sesión solo a llamadas y canales de voz.
+• Modo Solo por sesión (avanzado): libera el efecto global y aplica un ecualizador a cada sesión activa descubierta.
+• Acceso sin root con ADB inalámbrico: la app se empareja con la depuración inalámbrica del propio equipo mediante el puerto y el código de Android, sin PC ni cable.
+• La identidad ADB se genera en el dispositivo y se guarda solo en el almacenamiento privado de Mega Equalizer.
+• Una conexión persistente mantiene las instantáneas de sesiones y se recupera sola tras errores o reinicios de la depuración.
+• Método Root opcional para leer las sesiones con su -c dumpsys audio en equipos rooteados.
+• Toda la pantalla de cobertura está en español y es compatible con TalkBack, con pasos, estados, advertencias y anuncios hablados.
+• Requiere Android 11 o superior para el emparejamiento inalámbrico. Sin ADB, el método Root sigue disponible en equipos rooteados.

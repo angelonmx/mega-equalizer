@@ -2,7 +2,38 @@
 
 Todas las versiones publicadas de Mega Equalizer.
 
-## 1.2 — 2026-11-09
+## 1.3 - 2026-11-10
+
+### Cobertura total de canales
+
+- Nueva pantalla **Cobertura total** para ecualizar también llamadas, alarmas, notificaciones y canales que el efecto global del fabricante deja fuera.
+- La app descubre las sesiones de audio activas del sistema y les añade un ecualizador propio, sin grabar el audio ni enviar datos a Internet.
+- Modo **Automático**: conserva el efecto global para toda la mezcla y añade efectos por sesión solo a llamadas y canales de voz.
+- Modo **Solo por sesión** (avanzado): libera el efecto global y aplica un ecualizador a cada sesión activa descubierta. Avisa de que los sonidos sin sesión propia y los sonidos muy cortos pueden quedar sin cubrir.
+- El efecto por sesión usa `DynamicsProcessing` cuando el equipo lo permite y recurre al `Equalizer` del sistema cuando el primero no está disponible.
+- Las sesiones se consultan cada 5 segundos mientras el servicio está encendido; los efectos se reutilizan y se liberan cuando la sesión termina.
+
+### Acceso sin root mediante ADB
+
+- Nuevo método **ADB inalámbrico**: la app se empareja con la depuración inalámbrica del propio equipo a través de la interfaz local (`127.0.0.1`), sin PC ni cable.
+- Emparejamiento dentro de la app con el puerto y el código de 6 dígitos que muestra Android; también se indica el puerto de conexión.
+- Identidad ADB RSA generada en el dispositivo con BouncyCastle y guardada en el almacenamiento privado de la app.
+- Una sola conexión persistente y un flujo de shell de larga duración entregan las instantáneas de `dumpsys audio`; la app reconecta sola tras errores o reinicios de la depuración.
+- Requiere Android 11 o superior para el emparejamiento inalámbrico. En Android 8–10 se puede usar root o un puerto 5555 ya autorizado.
+
+### Acceso root opcional
+
+- Nuevo método **Root (avanzado)** que ejecuta `su -c dumpsys audio` para descubrir sesiones. No instala nada ni modifica archivos del sistema.
+- El superusuario puede pedir permiso la primera vez; la app no lo solicita automáticamente en cada consulta.
+
+### Accesibilidad y documentación
+
+- Toda la pantalla de cobertura está en español y es compatible con TalkBack: pasos, estados, advertencias y anuncios hablados.
+- La cobertura se detiene al apagar el servicio y se reanuda al reactivarlo.
+- README, política de privacidad, registro de cambios y novedades actualizados; avisos de terceros añadidos a la app.
+- Se mantienen exactamente tres APK: `arm64-v8a`, `armeabi-v7a` y universal, firmados con la misma clave.
+
+## 1.2 - 2026-11-09
 
 ### Ecualización de todo el dispositivo
 

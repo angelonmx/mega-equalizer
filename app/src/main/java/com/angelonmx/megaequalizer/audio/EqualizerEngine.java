@@ -49,6 +49,7 @@ public final class EqualizerEngine {
     private AudioRoute currentRoute;
     private volatile Runnable needsReapplyListener;
     private volatile boolean controlLost;
+    private volatile boolean globalAllowed = true;
     private long lastGlobalAttemptAt;
 
     public EqualizerEngine(Context context) {
@@ -67,6 +68,15 @@ public final class EqualizerEngine {
             disableGlobal();
             releaseAllSessions();
             engineLabel = "";
+            lastError = "";
+            return;
+        }
+
+        if (!globalAllowed) {
+            // Session-only coverage: the user explicitly asked for per-session
+            // effects even if the global mix is available on this device.
+            releaseGlobal();
+            engineLabel = context.getString(com.angelonmx.megaequalizer.R.string.engine_session_only);
             lastError = "";
             return;
         }
@@ -109,7 +119,7 @@ public final class EqualizerEngine {
      * @return true when the engine state changed and the UI should refresh.
      */
     public synchronized boolean ensureApplied() {
-        if (currentPreset == null) {
+        if (currentPreset == null || !globalAllowed) {
             return false;
         }
         boolean changed = false;
@@ -170,6 +180,7 @@ public final class EqualizerEngine {
         engineLabel = "";
         lastError = "";
         failedCategory = null;
+        globalAllowed = true;
     }
 
     public synchronized void applyToSession(int sessionId, Preset preset, AudioRoute route) {
@@ -177,10 +188,6 @@ public final class EqualizerEngine {
             return;
         }
         currentRoute = route;
-        if (isGlobalActive()) {
-            releaseSession(sessionId);
-            return;
-        }
         if (preset == null) {
             releaseSession(sessionId);
             return;
@@ -218,6 +225,41 @@ public final class EqualizerEngine {
             effect.release();
         }
         sessions.clear();
+    }
+
+    /**
+     * Enables or disables the global session-0 effect. The session-only
+     * fallback releases session 0 so Android does not apply two equalizers to
+     * the same output.
+     */
+    public synchronized void setGlobalAllowed(boolean allowed) {
+        if (globalAllowed == allowed) {
+            return;
+        }
+        globalAllowed = allowed;
+        if (!allowed) {
+            releaseGlobal();
+            if (currentPreset != null) {
+                engineLabel = context.getString(
+                        com.angelonmx.megaequalizer.R.string.engine_session_only
+                );
+            }
+        } else {
+            failedCategory = null;
+            controlLost = false;
+        }
+    }
+
+    public synchronized boolean isGlobalAllowed() {
+        return globalAllowed;
+    }
+
+    public synchronized int getSessionCount() {
+        return sessions.size();
+    }
+
+    public synchronized boolean hasSession(int sessionId) {
+        return sessions.containsKey(sessionId);
     }
 
     private void createGlobalEffect(DeviceCategory category) {
