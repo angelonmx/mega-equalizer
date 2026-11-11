@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Process;
@@ -19,8 +20,10 @@ import com.angelonmx.megaequalizer.coverage.AudioSessionDumpParser;
 import com.angelonmx.megaequalizer.coverage.AudioSessionInfo;
 import com.angelonmx.megaequalizer.coverage.CoverageController;
 import com.angelonmx.megaequalizer.coverage.RootSessionDiscovery;
+import com.angelonmx.megaequalizer.coverage.ShizukuBridge;
 import com.angelonmx.megaequalizer.data.PresetRepository;
 import com.angelonmx.megaequalizer.service.EqualizerService;
+import com.angelonmx.megaequalizer.util.AccessibilityUtils;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.materialswitch.MaterialSwitch;
@@ -28,16 +31,21 @@ import com.google.android.material.textfield.TextInputEditText;
 
 import java.util.List;
 
+import rikka.shizuku.Shizuku;
+
 /**
  * Settings screen for total coverage: per-session effects discovered through
  * the device's own wireless debugging daemon or through root.
  */
 public class TotalCoverageActivity extends BaseActivity {
 
+    private static final int SHIZUKU_PERMISSION_REQUEST = 3104;
+
     private PresetRepository repository;
     private MaterialSwitch switchTotalCoverage;
     private RadioGroup groupMode;
     private RadioGroup groupBackend;
+    private View cardShizuku;
     private View cardAdb;
     private View cardRoot;
     private TextInputEditText editConnectPort;
@@ -46,6 +54,9 @@ public class TotalCoverageActivity extends BaseActivity {
     private MaterialButton buttonPair;
     private MaterialButton buttonTestConnection;
     private MaterialButton buttonTestRoot;
+    private MaterialButton buttonRequestShizuku;
+    private MaterialButton buttonOpenShizuku;
+    private TextView textShizukuStatus;
     private TextView textPairingStatus;
     private TextView textRootStatus;
     private TextView textCoverageStatus;
@@ -53,6 +64,7 @@ public class TotalCoverageActivity extends BaseActivity {
     private TextView textCoverageSessions;
     private boolean binding;
     private boolean stateReceiverRegistered;
+    private boolean shizukuListenerRegistered;
 
     private final BroadcastReceiver stateReceiver = new BroadcastReceiver() {
         @Override
@@ -62,6 +74,36 @@ public class TotalCoverageActivity extends BaseActivity {
             }
         }
     };
+
+    private final Shizuku.OnRequestPermissionResultListener shizukuPermissionListener =
+            (requestCode, grantResult) -> runOnUiThread(() -> {
+                if (requestCode != SHIZUKU_PERMISSION_REQUEST
+                        || isFinishing() || isDestroyed()) {
+                    return;
+                }
+                updateShizukuStatus();
+                if (grantResult == PackageManager.PERMISSION_GRANTED) {
+                    repository.setCoverageBackend(PresetRepository.COVERAGE_BACKEND_SHIZUKU);
+                    repository.setTotalCoverageEnabled(true);
+                    bindValues();
+                    updateBackendCards();
+                    requestCoverageRefresh();
+                    Toast.makeText(
+                            this,
+                            R.string.coverage_shizuku_permission_granted,
+                            Toast.LENGTH_LONG
+                    ).show();
+                    announce(getString(R.string.coverage_shizuku_permission_granted));
+                } else {
+                    Toast.makeText(
+                            this,
+                            R.string.coverage_shizuku_permission_denied,
+                            Toast.LENGTH_LONG
+                    ).show();
+                    announce(getString(R.string.coverage_shizuku_permission_denied));
+                }
+                refreshStatus();
+            });
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -73,6 +115,7 @@ public class TotalCoverageActivity extends BaseActivity {
         switchTotalCoverage = findViewById(R.id.switchTotalCoverage);
         groupMode = findViewById(R.id.groupMode);
         groupBackend = findViewById(R.id.groupBackend);
+        cardShizuku = findViewById(R.id.cardShizuku);
         cardAdb = findViewById(R.id.cardAdb);
         cardRoot = findViewById(R.id.cardRoot);
         editConnectPort = findViewById(R.id.editConnectPort);
@@ -81,6 +124,9 @@ public class TotalCoverageActivity extends BaseActivity {
         buttonPair = findViewById(R.id.buttonPair);
         buttonTestConnection = findViewById(R.id.buttonTestConnection);
         buttonTestRoot = findViewById(R.id.buttonTestRoot);
+        buttonRequestShizuku = findViewById(R.id.buttonRequestShizuku);
+        buttonOpenShizuku = findViewById(R.id.buttonOpenShizuku);
+        textShizukuStatus = findViewById(R.id.textShizukuStatus);
         textPairingStatus = findViewById(R.id.textPairingStatus);
         textRootStatus = findViewById(R.id.textRootStatus);
         textCoverageStatus = findViewById(R.id.textCoverageStatus);
@@ -94,7 +140,7 @@ public class TotalCoverageActivity extends BaseActivity {
             if (checked) {
                 if (PresetRepository.COVERAGE_BACKEND_NONE.equals(
                         repository.getCoverageBackend())) {
-                    repository.setCoverageBackend(PresetRepository.COVERAGE_BACKEND_ADB);
+                    repository.setCoverageBackend(PresetRepository.COVERAGE_BACKEND_AUTO);
                 }
                 repository.setTotalCoverageEnabled(true);
                 updateBackendCards();
@@ -125,9 +171,15 @@ public class TotalCoverageActivity extends BaseActivity {
             if (binding) {
                 return;
             }
-            repository.setCoverageBackend(checkedId == R.id.radioRoot
-                    ? PresetRepository.COVERAGE_BACKEND_ROOT
-                    : PresetRepository.COVERAGE_BACKEND_ADB);
+            if (checkedId == R.id.radioRoot) {
+                repository.setCoverageBackend(PresetRepository.COVERAGE_BACKEND_ROOT);
+            } else if (checkedId == R.id.radioShizuku) {
+                repository.setCoverageBackend(PresetRepository.COVERAGE_BACKEND_SHIZUKU);
+            } else if (checkedId == R.id.radioAdb) {
+                repository.setCoverageBackend(PresetRepository.COVERAGE_BACKEND_ADB);
+            } else {
+                repository.setCoverageBackend(PresetRepository.COVERAGE_BACKEND_AUTO);
+            }
             updateBackendCards();
             requestCoverageRefresh();
         });
@@ -135,6 +187,8 @@ public class TotalCoverageActivity extends BaseActivity {
         buttonPair.setOnClickListener(view -> pairAndConnect());
         buttonTestConnection.setOnClickListener(view -> testConnection());
         buttonTestRoot.setOnClickListener(view -> testRoot());
+        buttonRequestShizuku.setOnClickListener(view -> requestShizukuPermission());
+        buttonOpenShizuku.setOnClickListener(view -> openShizuku());
         findViewById(R.id.buttonRefreshCoverage).setOnClickListener(view -> {
             requestCoverageRefresh();
             textPairingStatus.setText(R.string.coverage_test_in_progress);
@@ -164,6 +218,13 @@ public class TotalCoverageActivity extends BaseActivity {
             );
             stateReceiverRegistered = true;
         }
+        if (!shizukuListenerRegistered) {
+            try {
+                Shizuku.addRequestPermissionResultListener(shizukuPermissionListener);
+                shizukuListenerRegistered = true;
+            } catch (Throwable ignored) {
+            }
+        }
     }
 
     @Override
@@ -183,6 +244,13 @@ public class TotalCoverageActivity extends BaseActivity {
             }
             stateReceiverRegistered = false;
         }
+        if (shizukuListenerRegistered) {
+            try {
+                Shizuku.removeRequestPermissionResultListener(shizukuPermissionListener);
+            } catch (Throwable ignored) {
+            }
+            shizukuListenerRegistered = false;
+        }
         super.onStop();
     }
 
@@ -192,10 +260,7 @@ public class TotalCoverageActivity extends BaseActivity {
         groupMode.check(repository.isSessionOnlyCoverage()
                 ? R.id.radioSessionOnly
                 : R.id.radioAuto);
-        groupBackend.check(PresetRepository.COVERAGE_BACKEND_ROOT.equals(
-                repository.getCoverageBackend())
-                ? R.id.radioRoot
-                : R.id.radioAdb);
+        groupBackend.check(backendRadioId(repository.getCoverageBackend()));
         int connectPort = repository.getAdbConnectPort();
         int pairingPort = repository.getAdbPairingPort();
         if (editConnectPort.getText() == null || editConnectPort.getText().length() == 0) {
@@ -216,22 +281,119 @@ public class TotalCoverageActivity extends BaseActivity {
         }
     }
 
+    private int backendRadioId(String backend) {
+        if (PresetRepository.COVERAGE_BACKEND_ROOT.equals(backend)) {
+            return R.id.radioRoot;
+        }
+        if (PresetRepository.COVERAGE_BACKEND_SHIZUKU.equals(backend)) {
+            return R.id.radioShizuku;
+        }
+        if (PresetRepository.COVERAGE_BACKEND_ADB.equals(backend)) {
+            return R.id.radioAdb;
+        }
+        return R.id.radioBackendAuto;
+    }
+
     private void updateBackendCards() {
-        boolean root = PresetRepository.COVERAGE_BACKEND_ROOT.equals(
-                repository.getCoverageBackend());
-        cardAdb.setVisibility(root ? View.GONE : View.VISIBLE);
+        String backend = repository.getCoverageBackend();
+        boolean root = PresetRepository.COVERAGE_BACKEND_ROOT.equals(backend);
+        boolean shizuku = PresetRepository.COVERAGE_BACKEND_SHIZUKU.equals(backend)
+                || PresetRepository.COVERAGE_BACKEND_AUTO.equals(backend)
+                || PresetRepository.COVERAGE_BACKEND_NONE.equals(backend);
+        boolean adb = PresetRepository.COVERAGE_BACKEND_ADB.equals(backend)
+                || PresetRepository.COVERAGE_BACKEND_AUTO.equals(backend)
+                || PresetRepository.COVERAGE_BACKEND_NONE.equals(backend);
+        cardShizuku.setVisibility(shizuku ? View.VISIBLE : View.GONE);
+        cardAdb.setVisibility(adb ? View.VISIBLE : View.GONE);
         cardRoot.setVisibility(root ? View.VISIBLE : View.GONE);
         buttonPair.setEnabled(Build.VERSION.SDK_INT >= Build.VERSION_CODES.R);
+        updateShizukuStatus();
     }
 
     private void startCoverage() {
-        if (PresetRepository.COVERAGE_BACKEND_ADB.equals(repository.getCoverageBackend())
+        String backend = repository.getCoverageBackend();
+        if (PresetRepository.COVERAGE_BACKEND_ADB.equals(backend)
+                && repository.getAdbConnectPort() <= 0) {
+            textCoverageStatus.setText(R.string.coverage_config_missing_title);
+            textCoverageDetail.setText(R.string.coverage_config_missing_message);
+            textCoverageSessions.setText("");
+        } else if (PresetRepository.COVERAGE_BACKEND_SHIZUKU.equals(backend)
+                && !ShizukuBridge.isAvailable()) {
+            textCoverageStatus.setText(R.string.coverage_status_shizuku_unavailable);
+            textCoverageDetail.setText(R.string.coverage_shizuku_unavailable_detail);
+            textCoverageSessions.setText("");
+        } else if ((PresetRepository.COVERAGE_BACKEND_AUTO.equals(backend)
+                || PresetRepository.COVERAGE_BACKEND_NONE.equals(backend))
+                && !ShizukuBridge.isAvailable()
                 && repository.getAdbConnectPort() <= 0) {
             textCoverageStatus.setText(R.string.coverage_config_missing_title);
             textCoverageDetail.setText(R.string.coverage_config_missing_message);
             textCoverageSessions.setText("");
         }
         requestCoverageRefresh();
+    }
+
+    private void updateShizukuStatus() {
+        boolean available = ShizukuBridge.isAvailable();
+        boolean permitted = available && ShizukuBridge.hasPermission();
+        int message;
+        if (permitted) {
+            message = R.string.coverage_shizuku_status_available;
+        } else if (available) {
+            message = R.string.coverage_shizuku_status_no_permission;
+        } else {
+            message = R.string.coverage_shizuku_status_unavailable;
+        }
+        textShizukuStatus.setText(message);
+        buttonRequestShizuku.setVisibility(permitted ? View.GONE : View.VISIBLE);
+        buttonRequestShizuku.setEnabled(available && !permitted);
+    }
+
+    private void requestShizukuPermission() {
+        if (!ShizukuBridge.isAvailable()) {
+            Toast.makeText(
+                    this,
+                    R.string.coverage_shizuku_unavailable,
+                    Toast.LENGTH_LONG
+            ).show();
+            return;
+        }
+        if (ShizukuBridge.hasPermission()) {
+            repository.setCoverageBackend(PresetRepository.COVERAGE_BACKEND_SHIZUKU);
+            repository.setTotalCoverageEnabled(true);
+            bindValues();
+            updateBackendCards();
+            requestCoverageRefresh();
+            announce(getString(R.string.coverage_shizuku_permission_granted));
+            return;
+        }
+        try {
+            ShizukuBridge.requestPermission(SHIZUKU_PERMISSION_REQUEST);
+            textShizukuStatus.setText(R.string.coverage_shizuku_permission_requested);
+            announce(getString(R.string.coverage_shizuku_permission_requested));
+        } catch (Throwable error) {
+            Toast.makeText(
+                    this,
+                    R.string.coverage_shizuku_unavailable,
+                    Toast.LENGTH_LONG
+            ).show();
+        }
+    }
+
+    private void openShizuku() {
+        Intent intent = getPackageManager()
+                .getLaunchIntentForPackage(ShizukuBridge.PACKAGE_NAME);
+        if (intent != null) {
+            startActivity(intent);
+            return;
+        }
+        new MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.coverage_shizuku_heading)
+                .setMessage(R.string.coverage_shizuku_not_installed)
+                .setPositiveButton(R.string.coverage_shizuku_download, (dialog, which) ->
+                        AccessibilityUtils.openUrl(this, "https://github.com/RikkaApps/Shizuku/releases/latest"))
+                .setNegativeButton(R.string.close, null)
+                .show();
     }
 
     private void confirmSessionOnlyMode() {

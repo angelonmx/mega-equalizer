@@ -70,6 +70,8 @@ public final class PresetRepository {
     public static final String COVERAGE_MODE_AUTO = "auto";
     public static final String COVERAGE_MODE_SESSION_ONLY = "session_only";
     public static final String COVERAGE_BACKEND_NONE = "none";
+    public static final String COVERAGE_BACKEND_AUTO = "auto";
+    public static final String COVERAGE_BACKEND_SHIZUKU = "shizuku";
     public static final String COVERAGE_BACKEND_ADB = "adb";
     public static final String COVERAGE_BACKEND_ROOT = "root";
 
@@ -609,15 +611,22 @@ public final class PresetRepository {
     }
 
     public String getCoverageBackend() {
-        return preferences.getString(KEY_COVERAGE_BACKEND, COVERAGE_BACKEND_NONE);
+        return preferences.getString(KEY_COVERAGE_BACKEND, COVERAGE_BACKEND_AUTO);
     }
 
     public void setCoverageBackend(String backend) {
-        String value = COVERAGE_BACKEND_ROOT.equals(backend)
-                ? COVERAGE_BACKEND_ROOT
-                : COVERAGE_BACKEND_ADB.equals(backend)
-                ? COVERAGE_BACKEND_ADB
-                : COVERAGE_BACKEND_NONE;
+        String value;
+        if (COVERAGE_BACKEND_ROOT.equals(backend)) {
+            value = COVERAGE_BACKEND_ROOT;
+        } else if (COVERAGE_BACKEND_SHIZUKU.equals(backend)) {
+            value = COVERAGE_BACKEND_SHIZUKU;
+        } else if (COVERAGE_BACKEND_ADB.equals(backend)) {
+            value = COVERAGE_BACKEND_ADB;
+        } else if (COVERAGE_BACKEND_AUTO.equals(backend)) {
+            value = COVERAGE_BACKEND_AUTO;
+        } else {
+            value = COVERAGE_BACKEND_NONE;
+        }
         preferences.edit().putString(KEY_COVERAGE_BACKEND, value).commit();
     }
 

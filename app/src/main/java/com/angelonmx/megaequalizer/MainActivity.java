@@ -123,7 +123,6 @@ public class MainActivity extends BaseActivity {
         cardSettings.setOnClickListener(view ->
                 startActivity(new Intent(this, SettingsActivity.class)));
 
-        UpdateChecker.maybeCheckOnLaunch(this);
         UpdateChecker.reconcilePendingDownload(this);
         handler.postDelayed(() -> {
             if (!isFinishing() && !isDestroyed()) {
@@ -140,6 +139,9 @@ public class MainActivity extends BaseActivity {
     @Override
     protected void onStart() {
         super.onStart();
+        // Se comprueba en cada apertura de la interfaz, no solo al crear la
+        // actividad, porque el servicio puede seguir vivo entre aperturas.
+        UpdateChecker.maybeCheckOnLaunch(this);
         if (!receiverRegistered) {
             ContextCompat.registerReceiver(
                     this,

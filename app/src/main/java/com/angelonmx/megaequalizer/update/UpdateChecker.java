@@ -30,6 +30,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.lang.ref.WeakReference;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
@@ -39,10 +40,12 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-/** Checks GitHub Releases once on launch and guides the user through install. */
+/** Checks GitHub Releases whenever the UI opens and guides the user through install. */
 public final class UpdateChecker {
 
     private static final String TAG = "UpdateChecker";
+    /** Error returned by {@link #check} when another check is already running. */
+    public static final String ERROR_CHECKING = "checking";
     public static final String VERSION_URL = "https://github.com/"
             + BuildConfig.UPDATE_OWNER + "/" + BuildConfig.UPDATE_REPO
             + "/releases/latest/download/version.json";
@@ -77,18 +80,42 @@ public final class UpdateChecker {
     private static final Handler MAIN = new Handler(Looper.getMainLooper());
     private static final AtomicBoolean CHECKING = new AtomicBoolean(false);
     private static final AtomicBoolean RECONCILED = new AtomicBoolean(false);
-    private static volatile boolean checkedOnLaunch;
+    private static volatile int lastAutoPromptedVersionCode;
+    private static WeakReference<Activity> dialogActivity = new WeakReference<>(null);
 
     private UpdateChecker() {
     }
 
+    /**
+     * Checks for updates every time a visible screen opens. This is deliberately
+     * independent from the background service lifecycle: the service can stay
+     * alive for days without being restarted, so its start/stop events are not
+     * a reliable moment to look for releases.
+     */
     public static void maybeCheckOnLaunch(Activity activity) {
-        if (checkedOnLaunch) {
+        maybeCheckOnLaunch(activity, null);
+    }
+
+    /**
+     * Same as {@link #maybeCheckOnLaunch(Activity)} but reports the result to
+     * the caller, which is useful for the updates section in Settings.
+     */
+    public static void maybeCheckOnLaunch(
+            Activity activity,
+            @Nullable UpdateCallback callback
+    ) {
+        if (activity.isFinishing() || activity.isDestroyed()) {
             return;
         }
-        checkedOnLaunch = true;
         PresetRepository repository = PresetRepository.get(activity);
         if (!repository.isAutoUpdateEnabled()) {
+            return;
+        }
+        if (hasReadyUpdate(activity)) {
+            promptReadyUpdateIfNeeded(activity);
+            if (callback != null) {
+                callback.onResult(null, null);
+            }
             return;
         }
         MAIN.postDelayed(() -> {
@@ -96,11 +123,23 @@ public final class UpdateChecker {
                 return;
             }
             check(activity, (update, error) -> {
-                if (update != null && !activity.isFinishing() && !activity.isDestroyed()) {
-                    showUpdateDialog(activity, update);
+                if (callback != null) {
+                    callback.onResult(update, error);
                 }
+                if (update == null || activity.isFinishing() || activity.isDestroyed()) {
+                    return;
+                }
+                Activity current = dialogActivity.get();
+                if (current != null && !current.isFinishing() && !current.isDestroyed()) {
+                    return;
+                }
+                if (update.versionCode == lastAutoPromptedVersionCode) {
+                    return;
+                }
+                lastAutoPromptedVersionCode = update.versionCode;
+                showUpdateDialog(activity, update);
             });
-        }, 1400L);
+        }, 900L);
     }
 
     /**
@@ -142,7 +181,7 @@ public final class UpdateChecker {
 
     public static void check(Context context, UpdateCallback callback) {
         if (!CHECKING.compareAndSet(false, true)) {
-            MAIN.post(() -> callback.onResult(null, context.getString(R.string.updates_checking)));
+            MAIN.post(() -> callback.onResult(null, ERROR_CHECKING));
             return;
         }
         Context appContext = context.getApplicationContext();
@@ -243,6 +282,13 @@ public final class UpdateChecker {
         } else {
             builder.setPositiveButton(R.string.close, null);
         }
+        builder.setOnDismissListener(dialog -> {
+            Activity current = dialogActivity.get();
+            if (current == activity) {
+                dialogActivity = new WeakReference<>(null);
+            }
+        });
+        dialogActivity = new WeakReference<>(activity);
         builder.show();
     }
 
@@ -288,7 +334,16 @@ public final class UpdateChecker {
                     Environment.DIRECTORY_DOWNLOADS,
                     fileName
             );
-            long downloadId = manager.enqueue(request);
+            long downloadId;
+            try {
+                downloadId = manager.enqueue(request);
+            } catch (SecurityException hiddenError) {
+                // VISIBILITY_HIDDEN requiere un permiso especial en algunas
+                // versiones de Android; se vuelve a intentar con notificación visible.
+                Log.w(TAG, "Descarga oculta bloqueada, se usa visibilidad visible", hiddenError);
+                request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE);
+                downloadId = manager.enqueue(request);
+            }
             if (downloadId < 0) {
                 Toast.makeText(activity, R.string.update_download_failed, Toast.LENGTH_LONG).show();
                 return;

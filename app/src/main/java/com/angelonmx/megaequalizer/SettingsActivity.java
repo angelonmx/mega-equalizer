@@ -123,6 +123,21 @@ public class SettingsActivity extends BaseActivity {
     @Override
     protected void onStart() {
         super.onStart();
+        // Comprueba actualizaciones cada vez que se abre la pantalla de ajustes.
+        UpdateChecker.maybeCheckOnLaunch(this, (update, error) -> {
+            if (isFinishing() || isDestroyed()) {
+                return;
+            }
+            if (error != null && !UpdateChecker.ERROR_CHECKING.equals(error)) {
+                textUpdateStatus.setText(R.string.updates_error);
+            } else if (update != null) {
+                textUpdateStatus.setText(getString(
+                        R.string.update_available_status_format,
+                        update.versionName
+                ));
+                UpdateChecker.showUpdateDialog(this, update);
+            }
+        });
         if (!readyReceiverRegistered) {
             ContextCompat.registerReceiver(
                     this,

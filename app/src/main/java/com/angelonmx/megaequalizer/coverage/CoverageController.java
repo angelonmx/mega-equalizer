@@ -140,32 +140,64 @@ public final class CoverageController {
         }
         engine.setGlobalAllowed(!repository.isSessionOnlyCoverage());
 
-        String dump;
-        String backendLabel;
+        DiscoveryResult discovery;
         try {
-            if (PresetRepository.COVERAGE_BACKEND_ROOT.equals(repository.getCoverageBackend())) {
-                dump = rootDiscovery.readDumpsysAudio();
-                backendLabel = "root";
-            } else {
-                dump = readAdb();
-                backendLabel = "ADB";
-            }
+            discovery = discoverSessions();
         } catch (Throwable error) {
             handleDiscoveryError(error);
             return;
         }
 
         List<AudioSessionInfo> sessions = AudioSessionDumpParser.parse(
-                dump,
+                discovery.dump,
                 context.getPackageManager(),
                 Process.myUid()
         );
         applySessions(sessions);
         publishStatus(
-                "Cobertura total activa · " + backendLabel,
+                "Cobertura total activa · " + discovery.backendLabel,
                 buildDetail(sessions),
                 buildSummary(sessions)
         );
+    }
+
+    @NonNull
+    private DiscoveryResult discoverSessions() throws Exception {
+        String backend = repository.getCoverageBackend();
+        if (PresetRepository.COVERAGE_BACKEND_ROOT.equals(backend)) {
+            return new DiscoveryResult(rootDiscovery.readDumpsysAudio(), "root");
+        }
+        if (PresetRepository.COVERAGE_BACKEND_SHIZUKU.equals(backend)) {
+            return new DiscoveryResult(ShizukuBridge.readDumpsysAudio(), "Shizuku");
+        }
+        if (PresetRepository.COVERAGE_BACKEND_ADB.equals(backend)) {
+            return new DiscoveryResult(readAdb(), "ADB");
+        }
+        return discoverAutomatically();
+    }
+
+    /**
+     * Automatic mode prefers Shizuku because it does not need ports or a
+     * pairing code. If Shizuku is unavailable or fails, a previously paired
+     * ADB connection is used as a fallback.
+     */
+    @NonNull
+    private DiscoveryResult discoverAutomatically() throws Exception {
+        if (ShizukuBridge.isAvailable() && ShizukuBridge.hasPermission()) {
+            try {
+                return new DiscoveryResult(ShizukuBridge.readDumpsysAudio(), "Shizuku");
+            } catch (Throwable error) {
+                if (repository.getAdbConnectPort() > 0) {
+                    Log.w(TAG, "Shizuku falló; se intenta la conexión ADB", error);
+                    return new DiscoveryResult(readAdb(), "ADB");
+                }
+                throw error;
+            }
+        }
+        if (repository.getAdbConnectPort() > 0) {
+            return new DiscoveryResult(readAdb(), "ADB");
+        }
+        throw new ConfigurationMissingException();
     }
 
     @NonNull
@@ -243,7 +275,11 @@ public final class CoverageController {
     private void handleDiscoveryError(@NonNull Throwable error) {
         String detail = describeError(error);
         if (error instanceof ConfigurationMissingException) {
-            publishStatus("Cobertura total activa · Falta configurar ADB", detail, "");
+            publishStatus("Cobertura total activa · Falta configurar el acceso", detail, "");
+        } else if (error instanceof ShizukuBridge.UnavailableException) {
+            publishStatus("Cobertura total activa · Shizuku no disponible", detail, "");
+        } else if (error instanceof ShizukuBridge.PermissionException) {
+            publishStatus("Cobertura total activa · Permiso de Shizuku pendiente", detail, "");
         } else if (error instanceof RetryLaterException) {
             // Keep the previous status; the next attempt is already scheduled.
         } else if (error instanceof AdbAuthenticationFailedException) {
@@ -275,7 +311,13 @@ public final class CoverageController {
     @NonNull
     private String describeError(Throwable error) {
         if (error instanceof ConfigurationMissingException) {
-            return "Abre Cobertura total y escribe el puerto de conexión de la depuración inalámbrica.";
+            return "Abre Cobertura total y concede el permiso de Shizuku o empareja la depuración inalámbrica.";
+        }
+        if (error instanceof ShizukuBridge.UnavailableException) {
+            return "Abre Shizuku e inícialo con ADB o root; Mega Equalizer se conectará solo.";
+        }
+        if (error instanceof ShizukuBridge.PermissionException) {
+            return "En Cobertura total, pulsa Solicitar permiso y acepta el aviso de Shizuku.";
         }
         if (error instanceof AdbAuthenticationFailedException) {
             return "El equipo rechazó la identidad. Vuelve a emparejar con un código nuevo.";
@@ -467,6 +509,16 @@ public final class CoverageController {
         Thread thread = new Thread(task, "coverage-pairing");
         thread.setDaemon(true);
         thread.start();
+    }
+
+    private static final class DiscoveryResult {
+        private final String dump;
+        private final String backendLabel;
+
+        private DiscoveryResult(String dump, String backendLabel) {
+            this.dump = dump;
+            this.backendLabel = backendLabel;
+        }
     }
 
     private static final class ConfigurationMissingException extends Exception {
