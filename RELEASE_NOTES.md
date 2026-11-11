@@ -1,10 +1,11 @@
-# Mega Equalizer 1.5.2
+# Mega Equalizer 1.6.1
 
-Esta versión aplica el ecualizador directamente a la **estrategia de audio de accesibilidad (TalkBack)** obtenida vía Shizuku, para que el lector de pantalla se escuche ecualizado desde el primer momento sin esperar a que se detecte su sesión de audio.
+Esta versión mejora la integración con el servicio de accesibilidad para facilitar la obtención del permiso de Shizuku y la ecualización de TalkBack.
 
 ## Lo más importante
 
-- **Ecualizador directo a la estrategia de accesibilidad**: al iniciar la cobertura con Shizuku, la app obtiene el `AudioProductStrategy` id de `USAGE_ASSISTANCE_ACCESSIBILITY` mediante reflexión dentro del proceso de Shizuku (uid 2000, system API) y aplica el ecualizador directamente a esa estrategia. Esto elimina el retraso de "activación a mitad de la lectura" del lector de pantalla.
+- **Servicio de accesibilidad mejorado**: ahora detecta cuándo aparece el diálogo de permiso de Shizuku e intenta hacer clic automático en los botones "Permitir", "Allow", "Aceptar", "OK" o "Conceder" para facilitar la autorización.
+- **Ecualizador directo a la estrategia de accesibilidad (TalkBack)**: al iniciar la cobertura con Shizuku, la app obtiene el `AudioProductStrategy` id de `USAGE_ASSISTANCE_ACCESSIBILITY` mediante reflexión dentro del proceso de Shizuku (uid 2000, system API) y aplica el ecualizador directamente a esa estrategia.
 - **Método Shizuku (sin root)**: la app lee `dumpsys audio` y ejecuta comandos privilegiados a través de Shizuku si lo tienes instalado y autorizado.
 - **Método Root**: en equipos rooteados, ejecuta `su -c dumpsys audio`.
 - **Cobertura total**: descubre las sesiones de audio activas y les añade un ecualizador propio, sin grabar el audio ni enviar datos a Internet.
@@ -19,7 +20,7 @@ Esta versión aplica el ecualizador directamente a la **estrategia de audio de a
 1. Abre **Ajustes → Cobertura total**.
 2. Activa **Cobertura total** y elige el modo.
 3. Elige el método de acceso:
-   - **Shizuku (sin root)**: instala Shizuku desde GitHub (última versión), ábrelo, actívalo y pulsa «Solicitar permiso».
+   - **Shizuku (sin root)**: instala Shizuku desde GitHub (última versión), ábrelo, actívalo y pulsa «Solicitar permiso». Si el servicio de accesibilidad está activo, la app intentará hacer clic automático en el botón de conceder permiso del diálogo de Shizuku.
    - **Root (avanzado)**: pulsa «Probar acceso root».
 4. El estado mostrará las sesiones activas y cuántas tienen ecualizador.
 
@@ -27,22 +28,23 @@ Esta versión aplica el ecualizador directamente a la **estrategia de audio de a
 
 - **Android 8.0 (API 27) o superior** hasta API 37.
 - La estrategia de accesibilidad vía Shizuku requiere que Shizuku esté instalado, activo y autorizado para Mega Equalizer.
+- El clic automático en el diálogo de Shizuku es experimental y puede no funcionar en todos los dispositivos.
 - La cobertura total depende de que Android y el fabricante permitan crear efectos sobre cada sesión/estrategia. Algunos dispositivos bloquean efectos en sesiones de accesibilidad; en esos casos incluso este método puede no funcionar.
 - Ninguna app normal puede autoconcederse `MODIFY_AUDIO_ROUTING`; Shizuku o root son las vías privilegiadas. Mega Equalizer nunca eleva privilegios por su cuenta.
 - Los sonidos que no crean una sesión de audio propia (algunos tonos del sistema) y los sonidos muy cortos pueden quedar sin ecualizar.
 - La cobertura total es opcional. Sin ella, la app sigue funcionando exactamente como en 1.2 con el efecto global y los perfiles por salida.
 
-## Actualización desde 1.5.1
+## Actualización desde 1.6
 
-`versionCode` 1007. La app comprueba la actualización al abrirse, elige el APK de la arquitectura real del dispositivo y verifica el SHA-256, el nombre del paquete y el `versionCode` antes de ofrecer la instalación. Los presets, asignaciones, dispositivos y ajustes existentes se conservan.
+`versionCode` 1601. La app comprueba la actualización al abrirse, elige el APK de la arquitectura real del dispositivo y verifica el SHA-256, el nombre del paquete y el `versionCode` antes de ofrecer la instalación. Los presets, asignaciones, dispositivos y ajustes existentes se conservan.
 
 ## APK incluidos
 
 | Archivo | Arquitectura |
 | --- | --- |
-| `mega-equalizer-1.5.2-arm64-v8a.apk` | ARM de 64 bits (recomendado) |
-| `mega-equalizer-1.5.2-armeabi-v7a.apk` | ARM de 32 bits |
-| `mega-equalizer-1.5.2-universal.apk` | ARM64, ARMv7 y x86_64 |
+| `mega-equalizer-1.6.1-arm64-v8a.apk` | ARM de 64 bits (recomendado) |
+| `mega-equalizer-1.6.1-armeabi-v7a.apk` | ARM de 32 bits |
+| `mega-equalizer-1.6.1-universal.apk` | ARM64, ARMv7 y x86_64 |
 
 ## Notas
 

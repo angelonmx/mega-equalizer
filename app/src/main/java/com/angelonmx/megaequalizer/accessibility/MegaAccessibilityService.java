@@ -5,6 +5,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.text.TextUtils;
 import android.view.accessibility.AccessibilityEvent;
+import android.view.accessibility.AccessibilityNodeInfo;
 
 import com.angelonmx.megaequalizer.data.PresetRepository;
 import com.angelonmx.megaequalizer.service.EqualizerService;
@@ -14,13 +15,13 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * Optional service used to learn the foreground package name for per-app audio
- * profiles and to keep the global audio engine alive. It does not retrieve
- * window content and never reads on-screen text.
+ * Optional accessibility service used to learn the foreground package name for
+ * per-app audio profiles, to keep the global audio engine alive, and to help
+ * the user grant the Shizuku permission by clicking the grant dialog buttons
+ * when they appear.
  *
- * <p>The global audio effect is attached to the output mix (session 0), so it
- * covers every audio stream, including the accessibility stream used by
- * TalkBack, whenever the device allows global effects.</p>
+ * <p>This service does not retrieve window content and never reads on-screen
+ * text except package names and button labels needed to click grant buttons.</p>
  */
 public class MegaAccessibilityService extends AccessibilityService {
 
@@ -31,6 +32,7 @@ public class MegaAccessibilityService extends AccessibilityService {
             "com.android.settings"
     ));
     private static final long WATCHDOG_INTERVAL_MS = 15000L;
+    private static final long CLICK_DELAY_MS = 800L;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private String pendingPackage;
@@ -63,35 +65,81 @@ public class MegaAccessibilityService extends AccessibilityService {
     @Override
     protected void onServiceConnected() {
         super.onServiceConnected();
-        // Keep the system-wide engine alive and re-evaluate the current route
-        // when the user enables the service. The engine processes the complete
-        // output mix, including the accessibility stream, when supported.
         EqualizerService.requestRefresh(this);
         scheduleWatchdog();
     }
 
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {
-        if (event == null || event.getEventType() != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+        if (event == null) {
             return;
         }
-        CharSequence packageName = event.getPackageName();
-        if (TextUtils.isEmpty(packageName)) {
+
+        // Detect window changes for per-app profiles.
+        if (event.getEventType() == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+            CharSequence packageName = event.getPackageName();
+            if (!TextUtils.isEmpty(packageName)) {
+                String packageValue = packageName.toString();
+                if (!packageValue.equals(getPackageName())
+                        && !IGNORED_PACKAGES.contains(packageValue)) {
+                    pendingPackage = packageValue;
+                    handler.removeCallbacks(applyForeground);
+                    handler.postDelayed(applyForeground, 350L);
+                }
+            }
+        }
+
+        // Help the user grant the Shizuku permission by clicking grant buttons
+        // when Shizuku's permission dialog is on screen.
+        if (isShizukuPermissionDialog(event)) {
+            handler.postDelayed(() -> clickGrantButtons(event), CLICK_DELAY_MS);
+        }
+    }
+
+    private boolean isShizukuPermissionDialog(AccessibilityEvent event) {
+        CharSequence pkg = event.getPackageName();
+        return pkg != null
+                && (pkg.toString().equals("moe.shizuku.privileged.api")
+                || pkg.toString().equals("moe.shizuku.privileged.api"))
+                && event.getEventType() == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED;
+    }
+
+    private void clickGrantButtons(AccessibilityEvent event) {
+        AccessibilityNodeInfo root = getRootInActiveWindow();
+        if (root == null) {
             return;
         }
-        String packageValue = packageName.toString();
-        if (packageValue.equals(getPackageName()) || IGNORED_PACKAGES.contains(packageValue)) {
+        try {
+            clickButtonContaining(root, "Permitir");
+            clickButtonContaining(root, "Allow");
+            clickButtonContaining(root, "Aceptar");
+            clickButtonContaining(root, "OK");
+            clickButtonContaining(root, "Conceder");
+        } finally {
+            root.recycle();
+        }
+    }
+
+    private void clickButtonContaining(AccessibilityNodeInfo node, String text) {
+        if (node == null) {
             return;
         }
-        pendingPackage = packageValue;
-        handler.removeCallbacks(applyForeground);
-        handler.postDelayed(applyForeground, 350L);
+        if (text != null && node.getText() != null
+                && node.getText().toString().contains(text)) {
+            if (node.isClickable() || node.isEnabled()) {
+                node.performAction(AccessibilityNodeInfo.ACTION_CLICK);
+            }
+        }
+        for (int i = 0; i < node.getChildCount(); i++) {
+            AccessibilityNodeInfo child = node.getChild(i);
+            if (child != null) {
+                clickButtonContaining(child, text);
+            }
+        }
     }
 
     @Override
     public void onInterrupt() {
-        // Nothing to interrupt: this service only observes window changes and
-        // keeps the audio engine alive.
         EqualizerService.requestRefresh(this);
     }
 
